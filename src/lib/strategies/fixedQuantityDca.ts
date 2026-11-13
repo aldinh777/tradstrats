@@ -1,10 +1,10 @@
 import { createBacktestResult } from './performance'
-import type { StrategyDefinition, TradeOrder } from './types'
+import { MIN_ORDER_NOTIONAL, type StrategyDefinition, type TradeOrder } from './types'
 
 export const fixedQuantityDcaStrategy: StrategyDefinition = {
   id: 'fixed-quantity-dca',
   name: 'Fixed-Quantity DCA',
-  shortName: 'FixQty DCA',
+  shortName: 'FQDCA',
   category: 'Systematic Investing',
   color: '#74d5bb',
   description: 'Buy a fixed quantity at each candle open based on the first open and starting balance.',
@@ -23,6 +23,11 @@ export const fixedQuantityDcaStrategy: StrategyDefinition = {
       const amountToInvest = Math.min(plannedBudget, cash)
       if (amountToInvest > 0) {
         const quantity = (amountToInvest * (1 - feeRate)) / candle.o
+        const notional = quantity * candle.o
+        if (notional < MIN_ORDER_NOTIONAL) {
+          equity.push(cash + units * candle.c)
+          continue
+        }
         const fee = amountToInvest * feeRate
         units += quantity
         cash -= amountToInvest
@@ -33,7 +38,7 @@ export const fixedQuantityDcaStrategy: StrategyDefinition = {
           side: 'buy',
           price: candle.o,
           quantity,
-          notional: quantity * candle.o,
+          notional,
           fee,
         })
       }

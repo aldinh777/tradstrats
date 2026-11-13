@@ -1,5 +1,5 @@
 import { createBacktestResult } from './performance'
-import type { StrategyDefinition } from './types'
+import { MIN_ORDER_NOTIONAL, type StrategyDefinition } from './types'
 
 export const buyAndHoldStrategy: StrategyDefinition = {
   id: 'buy-and-hold',
@@ -9,22 +9,28 @@ export const buyAndHoldStrategy: StrategyDefinition = {
   description: 'Buy at the first candle open and hold through the end of the test.',
   run(candles, { startingBalance, feeRate }) {
     const firstPrice = candles[0].o
-    const units = (startingBalance * (1 - feeRate)) / firstPrice
-    const equity = [startingBalance, ...candles.map((candle) => units * candle.c)]
     const fee = startingBalance * feeRate
+    const quantity = (startingBalance - fee) / firstPrice
+    const notional = quantity * firstPrice
+    const hasOrder = notional >= MIN_ORDER_NOTIONAL
+    const units = hasOrder ? quantity : 0
+    const cash = hasOrder ? 0 : startingBalance
+    const equity = [startingBalance, ...candles.map((candle) => cash + units * candle.c)]
 
-    return createBacktestResult(equity, 1, startingBalance, {
+    return createBacktestResult(equity, hasOrder ? 1 : 0, startingBalance, {
       unitsOwned: units,
-      cashBalance: 0,
-      feesPaid: fee,
-      orders: [{
-        timestamp: candles[0].t,
-        side: 'buy',
-        price: firstPrice,
-        quantity: units,
-        notional: units * firstPrice,
-        fee,
-      }],
+      cashBalance: cash,
+      feesPaid: hasOrder ? fee : 0,
+      orders: hasOrder
+        ? [{
+            timestamp: candles[0].t,
+            side: 'buy',
+            price: firstPrice,
+            quantity: units,
+            notional,
+            fee,
+          }]
+        : [],
     })
   },
 }

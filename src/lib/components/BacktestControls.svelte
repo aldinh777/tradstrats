@@ -100,7 +100,7 @@
       </div>
     {/each}
   </div>
-  <div class="config-note"><span class="info-icon">i</span> 0.05% fee per buy/sell</div>
+  <div class="config-note"><span class="info-icon">i</span> $10 min order · 0.05% fee</div>
 </section>
 
 {#if errorMessage}

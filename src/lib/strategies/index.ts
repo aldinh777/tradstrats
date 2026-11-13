@@ -1,4 +1,5 @@
 import { buyAndHoldStrategy } from './buyAndHold'
+import { constantProportionRebalancingStrategy } from './constantProportionRebalancing'
 import { dollarCostAveragingStrategy } from './dollarCostAveraging'
 import { fixedQuantityDcaStrategy } from './fixedQuantityDca'
 import { nCandleMomentumStrategies } from './nCandleMomentum'
@@ -8,6 +9,7 @@ import type { StrategyDefinition, StrategyOption } from './types'
 export const STRATEGIES: StrategyDefinition[] = [
   buyAndHoldStrategy,
   dollarCostAveragingStrategy,
+  constantProportionRebalancingStrategy,
   valueCostAveragingStrategy,
   fixedQuantityDcaStrategy,
   ...nCandleMomentumStrategies,

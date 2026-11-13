@@ -1,5 +1,5 @@
 import { createBacktestResult } from './performance'
-import type { StrategyDefinition, TradeOrder } from './types'
+import { MIN_ORDER_NOTIONAL, type StrategyDefinition, type TradeOrder } from './types'
 
 function createNCandleMomentumStrategy(momentumN: number, color: string): StrategyDefinition {
   return {
@@ -24,36 +24,41 @@ function createNCandleMomentumStrategy(momentumN: number, color: string): Strate
       for (const candle of candles) {
         if (pendingAction === 'buy' && !inPosition && cash > 0) {
           const fee = cash * feeRate
-          units = (cash * (1 - feeRate)) / candle.o
-          const notional = units * candle.o
-          feesPaid += fee
-          orders.push({
-            timestamp: candle.t,
-            side: 'buy',
-            price: candle.o,
-            quantity: units,
-            notional,
-            fee,
-          })
-          cash = 0
-          inPosition = true
-          trades += 1
+          const quantity = (cash - fee) / candle.o
+          const notional = quantity * candle.o
+          if (notional >= MIN_ORDER_NOTIONAL) {
+            units = quantity
+            feesPaid += fee
+            orders.push({
+              timestamp: candle.t,
+              side: 'buy',
+              price: candle.o,
+              quantity: units,
+              notional,
+              fee,
+            })
+            cash = 0
+            inPosition = true
+            trades += 1
+          }
         } else if (pendingAction === 'sell' && inPosition) {
           const saleValue = units * candle.o
-          const fee = saleValue * feeRate
-          feesPaid += fee
-          orders.push({
-            timestamp: candle.t,
-            side: 'sell',
-            price: candle.o,
-            quantity: units,
-            notional: saleValue,
-            fee,
-          })
-          cash = saleValue - fee
-          units = 0
-          inPosition = false
-          trades += 1
+          if (saleValue >= MIN_ORDER_NOTIONAL) {
+            const fee = saleValue * feeRate
+            feesPaid += fee
+            orders.push({
+              timestamp: candle.t,
+              side: 'sell',
+              price: candle.o,
+              quantity: units,
+              notional: saleValue,
+              fee,
+            })
+            cash = saleValue - fee
+            units = 0
+            inPosition = false
+            trades += 1
+          }
         }
         pendingAction = null
 

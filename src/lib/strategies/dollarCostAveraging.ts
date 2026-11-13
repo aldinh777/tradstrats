@@ -1,5 +1,5 @@
 import { createBacktestResult } from './performance'
-import type { StrategyDefinition, TradeOrder } from './types'
+import { MIN_ORDER_NOTIONAL, type StrategyDefinition, type TradeOrder } from './types'
 
 export const dollarCostAveragingStrategy: StrategyDefinition = {
   id: 'dca',
@@ -21,6 +21,11 @@ export const dollarCostAveragingStrategy: StrategyDefinition = {
       const amountToInvest = Math.min(amountPerCandle, cash)
       if (amountToInvest > 0) {
         const quantity = (amountToInvest * (1 - feeRate)) / candle.o
+        const notional = quantity * candle.o
+        if (notional < MIN_ORDER_NOTIONAL) {
+          equity.push(cash + units * candle.c)
+          continue
+        }
         const fee = amountToInvest * feeRate
         units += quantity
         cash -= amountToInvest
@@ -31,7 +36,7 @@ export const dollarCostAveragingStrategy: StrategyDefinition = {
           side: 'buy',
           price: candle.o,
           quantity,
-          notional: quantity * candle.o,
+          notional,
           fee,
         })
       }

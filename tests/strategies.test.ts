@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { chartPoint } from '../src/lib/backtest'
 import { buyAndHoldStrategy } from '../src/lib/strategies/buyAndHold'
+import { constantProportionRebalancingStrategy } from '../src/lib/strategies/constantProportionRebalancing'
 import { dollarCostAveragingStrategy } from '../src/lib/strategies/dollarCostAveraging'
 import { fixedQuantityDcaStrategy } from '../src/lib/strategies/fixedQuantityDca'
 import { nCandleMomentumStrategies } from '../src/lib/strategies/nCandleMomentum'
 import { valueCostAveragingStrategy } from '../src/lib/strategies/valueCostAveraging'
-import type { Candle, StrategyContext, StrategyDefinition } from '../src/lib/strategies/types'
+import { MIN_ORDER_NOTIONAL, type Candle, type StrategyContext, type StrategyDefinition } from '../src/lib/strategies/types'
 
 const context: StrategyContext = {
   startingBalance: 1_000,
@@ -89,6 +90,22 @@ describe('investing strategies', () => {
     ])
   })
 
+  test('constant portfolio rebalancing starts and rebalances to 50:50', () => {
+    const result = run(
+      constantProportionRebalancingStrategy,
+      candles([[100, 100], [200, 200], [100, 100]]),
+    )
+
+    expect(result.orders.map(({ timestamp, side, notional }) => ({ timestamp, side, notional }))).toEqual([
+      { timestamp: 0, side: 'buy', notional: 500 },
+      { timestamp: 1, side: 'sell', notional: 250 },
+      { timestamp: 2, side: 'buy', notional: 187.5 },
+    ])
+    expect(result.unitsOwned).toBe(5.625)
+    expect(result.cashBalance).toBe(562.5)
+    expect(result.trades).toBe(3)
+  })
+
   test('value averaging follows a linear portfolio-value target', () => {
     const result = run(valueCostAveragingStrategy, candles([[100, 100], [200, 200], [300, 300], [100, 100]]))
 
@@ -103,6 +120,46 @@ describe('investing strategies', () => {
     expect(result.unitsOwned).toBe(10)
     expect(result.cashBalance).toBe(250)
     expect(result.trades).toBe(2)
+  })
+
+  test('never records an order below the $10 minimum notional', () => {
+    const data = candles([
+      [100, 110],
+      [110, 120],
+      [120, 110],
+      [110, 90],
+      [90, 100],
+      [100, 80],
+    ])
+    const strategies = [
+      buyAndHoldStrategy,
+      dollarCostAveragingStrategy,
+      constantProportionRebalancingStrategy,
+      valueCostAveragingStrategy,
+      fixedQuantityDcaStrategy,
+      ...nCandleMomentumStrategies,
+    ]
+
+    for (const strategy of strategies) {
+      const result = run(strategy, data)
+      expect(result.orders.every((order) => order.notional >= MIN_ORDER_NOTIONAL)).toBe(true)
+    }
+  })
+
+  test('skips investments when available order notional is below $10', () => {
+    const smallBalanceContext = { startingBalance: 10, feeRate: 0.01 }
+    const data = candles([[100, 100], [100, 100]])
+    const strategies = [
+      buyAndHoldStrategy,
+      dollarCostAveragingStrategy,
+      constantProportionRebalancingStrategy,
+      valueCostAveragingStrategy,
+      fixedQuantityDcaStrategy,
+    ]
+
+    for (const strategy of strategies) {
+      expect(run(strategy, data, smallBalanceContext).orders).toHaveLength(0)
+    }
   })
 })
 

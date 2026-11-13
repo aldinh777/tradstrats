@@ -16,6 +16,8 @@ export type TradeOrder = {
   fee: number
 }
 
+export const MIN_ORDER_NOTIONAL = 10
+
 export type BacktestResult = {
   equity: number[]
   totalReturn: number
