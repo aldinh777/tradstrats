@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { StrategyOption } from '../strategies/types'
+  import { formatMonthLabel, TIMEFRAMES } from '../backtest'
+  import { STRATEGY_CATEGORIES, type StrategyCategory, type StrategyOption } from '../strategies/types'
 
   export let markets: string[]
   export let strategies: StrategyOption[]
@@ -7,13 +8,18 @@
   export let selectedInterval: string
   export let startMonth: string
   export let endMonth: string
-  export let currentMonth: string
+  export let monthOptions: string[]
   export let selectedStrategyIds: string[]
   export let loading: boolean
   export let errorMessage: string
   export let onRun: () => void
 
-  $: canSelectMoreStrategies = selectedStrategyIds.length >= 4
+  $: startMonthOptions = monthOptions.filter((month) => month <= endMonth)
+  $: endMonthOptions = monthOptions.filter((month) => month >= startMonth)
+  $: strategyGroups = STRATEGY_CATEGORIES.map((category: StrategyCategory) => ({
+    category,
+    strategies: strategies.filter((strategy) => strategy.category === category),
+  })).filter((group) => group.strategies.length > 0)
 </script>
 
 <section class="control-panel" aria-label="Backtest configuration">
@@ -33,9 +39,9 @@
     <label for="interval">TIMEFRAME</label>
     <div class="select-wrap">
       <select id="interval" bind:value={selectedInterval}>
-        <option value="1h">1 hour</option>
-        <option value="4h">4 hours</option>
-        <option value="1d">1 day</option>
+        {#each TIMEFRAMES as timeframe}
+          <option value={timeframe.value}>{timeframe.label}</option>
+        {/each}
       </select>
       <span class="select-chevron">⌄</span>
     </div>
@@ -44,22 +50,25 @@
   <div class="control-group date-range-control">
     <label for="start-month">DATE RANGE</label>
     <div class="month-range">
-      <input id="start-month" type="month" bind:value={startMonth} max={endMonth} aria-label="Start month" />
+      <div class="select-wrap">
+        <select id="start-month" bind:value={startMonth} aria-label="Start month">
+          {#each startMonthOptions as month}<option value={month}>{formatMonthLabel(month)}</option>{/each}
+        </select>
+        <span class="select-chevron">⌄</span>
+      </div>
       <span>to</span>
-      <input
-        id="end-month"
-        type="month"
-        bind:value={endMonth}
-        min={startMonth}
-        max={currentMonth}
-        aria-label="End month"
-      />
+      <div class="select-wrap">
+        <select id="end-month" bind:value={endMonth} aria-label="End month">
+          {#each endMonthOptions as month}<option value={month}>{formatMonthLabel(month)}</option>{/each}
+        </select>
+        <span class="select-chevron">⌄</span>
+      </div>
     </div>
   </div>
   <div class="control-divider strategy-divider"></div>
   <div class="control-group comparison-control">
     <span class="control-label">COMPARE</span>
-    <div class="strategy-count">{selectedStrategyIds.length} <span>/ 4 max</span></div>
+    <div class="strategy-count">{selectedStrategyIds.length} <span>selected</span></div>
   </div>
   <div class="control-action">
     <button class="run-button" on:click={onRun} disabled={loading || !markets.length}>
@@ -71,26 +80,27 @@
 <section class="strategy-config" aria-label="Choose strategies to compare">
   <div class="config-title"><span class="sliders-icon">≡</span> Compare strategies</div>
   <div class="config-divider"></div>
-  <div class="strategy-options">
-    {#each strategies as strategy}
-      <label
-        class="strategy-option"
-        class:strategy-option-selected={selectedStrategyIds.includes(strategy.id)}
-        class:strategy-option-disabled={!selectedStrategyIds.includes(strategy.id) && canSelectMoreStrategies}
-        title={strategy.description}
-      >
-        <input
-          type="checkbox"
-          value={strategy.id}
-          bind:group={selectedStrategyIds}
-          disabled={!selectedStrategyIds.includes(strategy.id) && canSelectMoreStrategies}
-        />
-        <span class="strategy-option-dot" style={`--strategy-color: ${strategy.color}`}></span>
-        <span>{strategy.name}</span>
-      </label>
+  <div class="strategy-groups">
+    {#each strategyGroups as group}
+      <div class="strategy-category">
+        <span class="strategy-category-title">{group.category}</span>
+        <div class="strategy-options">
+          {#each group.strategies as strategy}
+            <label
+              class="strategy-option"
+              class:strategy-option-selected={selectedStrategyIds.includes(strategy.id)}
+              title={strategy.description}
+            >
+              <input type="checkbox" value={strategy.id} bind:group={selectedStrategyIds} />
+              <span class="strategy-option-dot" style={`--strategy-color: ${strategy.color}`}></span>
+              <span>{strategy.shortName ?? strategy.name}</span>
+            </label>
+          {/each}
+        </div>
+      </div>
     {/each}
   </div>
-  <div class="config-note"><span class="info-icon">i</span> Up to 4 · 0.05% fee per buy/sell</div>
+  <div class="config-note"><span class="info-icon">i</span> 0.05% fee per buy/sell</div>
 </section>
 
 {#if errorMessage}

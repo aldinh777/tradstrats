@@ -20,15 +20,32 @@
   const now = new Date()
   const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
   const initialStartDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1))
+  const monthOptions: string[] = []
+  for (let offset = 0; ; offset += 1) {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1))
+    const month = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
+    if (month < '2009-01') break
+    monthOptions.push(month)
+  }
 
   let markets: string[] = []
   let selectedCoin = 'BTC'
   let selectedInterval = '1d'
   let startMonth = `${initialStartDate.getUTCFullYear()}-${String(initialStartDate.getUTCMonth() + 1).padStart(2, '0')}`
   let endMonth = currentMonth
-  let selectedStrategyIds = ['buy-and-hold', 'trend-following']
+  let selectedStrategyIds = [
+    'buy-and-hold',
+    'n-candle-momentum-1',
+    'n-candle-momentum-2',
+    'n-candle-momentum-3',
+    'n-candle-momentum-4',
+    'n-candle-momentum-5',
+    'n-candle-momentum-6',
+    'n-candle-momentum-7',
+  ]
   let candles: Candle[] = []
   let comparisons: StrategyComparison[] = []
+  let hoveredStrategyId: string | null = null
   let loading = true
   let errorMessage = ''
   let lastUpdated = ''
@@ -42,11 +59,10 @@
       errorMessage = 'Start month must be before or equal to end month.'
       return
     }
-    if (!selectedStrategyIds.length || selectedStrategyIds.length > 4) {
-      errorMessage = 'Select between 1 and 4 strategies to compare.'
+    if (!selectedStrategyIds.length) {
+      errorMessage = 'Select at least one strategy to compare.'
       return
     }
-
     loading = true
     errorMessage = ''
 
@@ -119,7 +135,7 @@
         bind:selectedInterval
         bind:startMonth
         bind:endMonth
-        {currentMonth}
+        {monthOptions}
         strategies={STRATEGY_OPTIONS}
         bind:selectedStrategyIds
         {loading}
@@ -133,8 +149,15 @@
         {candles}
         {loading}
       />
-      <StrategyComparisonResults {comparisons} {loading} {periodLabel} coin={selectedCoin} />
-      <EquityChart {comparisons} {candles} {loading} />
+      <StrategyComparisonResults
+        {comparisons}
+        {loading}
+        {periodLabel}
+        coin={selectedCoin}
+        {hoveredStrategyId}
+        onHover={(strategyId) => (hoveredStrategyId = strategyId)}
+      />
+      <EquityChart {comparisons} {candles} {loading} {hoveredStrategyId} />
 
       <footer class="page-footer">
         <span>Built for systematic thinkers.</span>

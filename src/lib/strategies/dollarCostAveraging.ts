@@ -1,11 +1,13 @@
 import { createBacktestResult } from './performance'
 import type { StrategyDefinition } from './types'
 
-export const dcaStrategy: StrategyDefinition = {
+export const dollarCostAveragingStrategy: StrategyDefinition = {
   id: 'dca',
-  name: 'DCA',
+  name: 'Dollar Cost Averaging (DCA)',
+  shortName: 'DCA',
+  category: 'Systematic Investing',
   color: '#74baff',
-  description: 'Invest an equal dollar amount on every candle, then hold the purchases.',
+  description: 'Invest a fixed USD amount at each candle open, then hold the purchases.',
   run(candles, { startingBalance, feeRate }) {
     const amountPerCandle = startingBalance / candles.length
     const equity: number[] = []
@@ -17,7 +19,7 @@ export const dcaStrategy: StrategyDefinition = {
     for (const candle of candles) {
       const amountToInvest = Math.min(amountPerCandle, cash)
       if (amountToInvest > 0) {
-        units += (amountToInvest * (1 - feeRate)) / candle.c
+        units += (amountToInvest * (1 - feeRate)) / candle.o
         cash -= amountToInvest
         feesPaid += amountToInvest * feeRate
         trades += 1

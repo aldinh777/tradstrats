@@ -1,20 +1,27 @@
 import { buyAndHoldStrategy } from './buyAndHold'
-import { delayedTrendFollowingStrategy } from './delayedTrendFollowing'
-import { dcaStrategy } from './dca'
-import { trendFollowingStrategy } from './trendFollowing'
+import { dollarCostAveragingStrategy } from './dollarCostAveraging'
+import { fixedQuantityDcaStrategy } from './fixedQuantityDca'
+import { nCandleMomentumStrategies } from './nCandleMomentum'
 import { valueCostAveragingStrategy } from './valueCostAveraging'
 import type { StrategyDefinition, StrategyOption } from './types'
 
 export const STRATEGIES: StrategyDefinition[] = [
   buyAndHoldStrategy,
-  dcaStrategy,
-  trendFollowingStrategy,
-  delayedTrendFollowingStrategy,
+  dollarCostAveragingStrategy,
   valueCostAveragingStrategy,
+  fixedQuantityDcaStrategy,
+  ...nCandleMomentumStrategies,
 ]
 
 export const STRATEGY_OPTIONS: StrategyOption[] = STRATEGIES.map(
-  ({ id, name, description, color }) => ({ id, name, description, color }),
+  ({ id, name, shortName, description, color, category }) => ({
+    id,
+    name,
+    shortName,
+    description,
+    color,
+    category,
+  }),
 )
 
 export function getStrategy(id: string): StrategyDefinition {

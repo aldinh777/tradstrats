@@ -4,6 +4,13 @@ export type { BacktestResult, Candle } from './strategies/types'
 
 export const STARTING_BALANCE = 10_000
 export const FEE_RATE = 0.0005
+export const TIMEFRAMES = [
+  { value: '12h', label: '12 hours', apiInterval: '12h' },
+  { value: '1d', label: '1 day', apiInterval: '1d' },
+  { value: '3d', label: '3 days', apiInterval: '3d' },
+  { value: '7d', label: '7 days', apiInterval: '1w' },
+  { value: '1M', label: '1 month', apiInterval: '1M' },
+] as const
 
 const API_URL = 'https://api.hyperliquid.xyz/info'
 
@@ -52,12 +59,17 @@ function monthStartTimestamp(value: string): number {
   return Date.UTC(year, month - 1, 1)
 }
 
+export function formatMonthLabel(value: string): string {
+  monthStartTimestamp(value)
+  return value
+}
+
 export function formatMonthRange(startMonth: string, endMonth: string): string {
-  const formatMonth = (value: string) =>
-    new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(
-      monthStartTimestamp(value),
-    )
-  return `${formatMonth(startMonth)} – ${formatMonth(endMonth)}`
+  return `${formatMonthLabel(startMonth)} – ${formatMonthLabel(endMonth)}`
+}
+
+export function formatTimeframeLabel(interval: string): string {
+  return TIMEFRAMES.find((timeframe) => timeframe.value === interval)?.label ?? interval
 }
 
 export async function fetchCandles(
@@ -66,6 +78,9 @@ export async function fetchCandles(
   startMonth: string,
   endMonth: string,
 ): Promise<Candle[]> {
+  const timeframe = TIMEFRAMES.find((item) => item.value === interval)
+  if (!timeframe) throw new Error('Choose a supported candle timeframe.')
+
   const startTime = monthStartTimestamp(startMonth)
   const endMonthStart = monthStartTimestamp(endMonth)
   if (startTime > endMonthStart) {
@@ -81,7 +96,7 @@ export async function fetchCandles(
 
   const response = await postInfo({
     type: 'candleSnapshot',
-    req: { coin, interval, startTime, endTime },
+    req: { coin, interval: timeframe.apiInterval, startTime, endTime },
   })
 
   if (!Array.isArray(response)) {
@@ -98,7 +113,14 @@ export async function fetchCandles(
       c: Number(item.c),
       v: Number(item.v),
     }))
-    .filter((candle) => Number.isFinite(candle.t) && Number.isFinite(candle.c) && candle.c > 0)
+    .filter(
+      (candle) =>
+        Number.isFinite(candle.t) &&
+        Number.isFinite(candle.o) &&
+        candle.o > 0 &&
+        Number.isFinite(candle.c) &&
+        candle.c > 0,
+    )
     .sort((a, b) => a.t - b.t)
 
   if (candles.length < 2) {

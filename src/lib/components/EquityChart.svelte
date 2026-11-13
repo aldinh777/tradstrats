@@ -11,6 +11,7 @@
   export let comparisons: StrategyComparison[]
   export let candles: Candle[]
   export let loading: boolean
+  export let hoveredStrategyId: string | null
 
   $: series = comparisons.map((comparison) => comparison.result.equity)
   $: paths = chartPaths(series)
@@ -50,7 +51,9 @@
           <path
             d={paths.paths[index]}
             class="chart-path"
-            style={`stroke: ${comparison.strategy.color}`}
+            class:chart-path-hovered={hoveredStrategyId === comparison.strategy.id}
+            class:chart-path-dimmed={hoveredStrategyId !== null && hoveredStrategyId !== comparison.strategy.id}
+            style={`--strategy-color: ${comparison.strategy.color}; stroke: ${comparison.strategy.color}`}
           />
         {/each}
       </svg>

@@ -6,12 +6,19 @@
   export let loading: boolean
   export let periodLabel: string
   export let coin: string
+  export let hoveredStrategyId: string | null
+  export let onHover: (strategyId: string | null) => void
 </script>
 
 <section class="comparison-grid" aria-label="Strategy comparison results">
   {#if comparisons.length}
     {#each comparisons as comparison}
-      <article class="comparison-card">
+      <article
+        class="comparison-card"
+        class:comparison-card-hovered={hoveredStrategyId === comparison.strategy.id}
+        on:mouseenter={() => onHover(comparison.strategy.id)}
+        on:mouseleave={() => onHover(null)}
+      >
         <div class="comparison-card-heading">
           <span class="comparison-dot" style={`--strategy-color: ${comparison.strategy.color}`}></span>
           <strong>{comparison.strategy.name}</strong>

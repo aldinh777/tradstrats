@@ -18,11 +18,21 @@ export type BacktestResult = {
   feesPaid: number
 }
 
+export const STRATEGY_CATEGORIES = [
+  'Passive Investing',
+  'Systematic Investing',
+  'Momentum Trading',
+] as const
+
+export type StrategyCategory = (typeof STRATEGY_CATEGORIES)[number]
+
 export type StrategyOption = {
   id: string
   name: string
+  shortName?: string
   description: string
   color: string
+  category: StrategyCategory
 }
 
 export type StrategyContext = {

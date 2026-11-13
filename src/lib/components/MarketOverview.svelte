@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatCurrency, formatPercent, type Candle } from '../backtest'
+  import { formatCurrency, formatPercent, formatTimeframeLabel, type Candle } from '../backtest'
 
   export let coin: string
   export let interval: string
@@ -26,7 +26,7 @@
     {candles.length ? formatPercent(marketChange) : '—'} <span>period</span>
   </div>
   <div class="market-divider"></div>
-  <div class="market-stat"><span>TIMEFRAME</span><strong>{interval.toUpperCase()}</strong></div>
+  <div class="market-stat"><span>TIMEFRAME</span><strong>{formatTimeframeLabel(interval)}</strong></div>
   <div class="market-stat"><span>HISTORY</span><strong>{candles.length ? `${candles.length} candles` : '—'}</strong></div>
   <div class="market-stat">
     <span>DATA SOURCE</span>
