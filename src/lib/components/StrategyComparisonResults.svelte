@@ -44,7 +44,7 @@
           <div><span>MAX DRAWDOWN</span><strong>{comparison.result.maxDrawdown.toFixed(2)}%</strong></div>
           <div><span>ORDERS</span><strong>{comparison.result.trades}</strong></div>
           <div><span>ENDING BALANCE</span><strong>{formatCurrency(comparison.result.finalBalance)}</strong></div>
-          <div><span>UNITS OWNED</span><strong>{formatUnits(comparison.result.unitsOwned)} {coin}</strong></div>
+          <div><span>UNITS OWNED</span><strong>{formatUnits(comparison.result.unitsOwned)}</strong></div>
           <div><span>CASH LEFT</span><strong>{formatCurrency(comparison.result.cashBalance)}</strong></div>
           <div><span>FEES PAID</span><strong>{formatCurrency(comparison.result.feesPaid)}</strong></div>
         </div>

@@ -14,24 +14,95 @@
   export let errorMessage: string
   export let onRun: () => void
 
+  let marketQuery = selectedCoin
+  let marketMenuOpen = false
+
   $: startMonthOptions = monthOptions.filter((month) => month <= endMonth)
   $: endMonthOptions = monthOptions.filter((month) => month >= startMonth)
+  $: filteredMarkets = markets.filter((market) =>
+    market.toLowerCase().includes(marketQuery.trim().toLowerCase()),
+  )
   $: strategyGroups = STRATEGY_CATEGORIES.map((category: StrategyCategory) => ({
     category,
     strategies: strategies.filter((strategy) => strategy.category === category),
   })).filter((group) => group.strategies.length > 0)
+  $: if (!marketMenuOpen && marketQuery !== selectedCoin) marketQuery = selectedCoin
+
+  function openMarketMenu() {
+    if (marketQuery === selectedCoin) marketQuery = ''
+    marketMenuOpen = true
+  }
+
+  function selectMarket(market: string) {
+    selectedCoin = market
+    marketQuery = market
+    marketMenuOpen = false
+  }
+
+  function handleMarketKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      marketMenuOpen = false
+      marketQuery = selectedCoin
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      marketMenuOpen = true
+      const firstOption = event.currentTarget instanceof HTMLElement
+        ? event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.market-option')
+        : null
+      firstOption?.focus()
+    } else if (event.key === 'Enter' && filteredMarkets.length === 1) {
+      event.preventDefault()
+      selectMarket(filteredMarkets[0])
+    }
+  }
+
+  function handleMarketFocusOut(event: FocusEvent) {
+    const container = event.currentTarget
+    const nextTarget = event.relatedTarget
+    if (container instanceof HTMLElement && nextTarget instanceof Node && container.contains(nextTarget)) {
+      return
+    }
+    marketMenuOpen = false
+    marketQuery = selectedCoin
+  }
 </script>
 
 <section class="control-panel" aria-label="Backtest configuration">
   <div class="control-group market-control">
     <label for="market">MARKET</label>
-    <div class="select-wrap market-select">
+    <div class="market-picker" role="group" aria-label="Select market" on:focusout={handleMarketFocusOut}>
       <span class="coin-icon">{selectedCoin.slice(0, 1)}</span>
-      <select id="market" bind:value={selectedCoin} disabled={!markets.length}>
-        {#if !markets.length}<option>Loading markets…</option>{/if}
-        {#each markets as market}<option value={market}>{market}-USD</option>{/each}
-      </select>
-      <span class="select-chevron">⌄</span>
+      <input
+        id="market"
+        type="search"
+        role="combobox"
+        aria-label="Search markets"
+        aria-autocomplete="list"
+        aria-expanded={marketMenuOpen}
+        aria-controls="market-options"
+        placeholder={markets.length ? selectedCoin : 'Loading markets…'}
+        bind:value={marketQuery}
+        disabled={!markets.length}
+        on:focus={openMarketMenu}
+        on:input={() => (marketMenuOpen = true)}
+        on:keydown={handleMarketKeydown}
+      />
+      {#if marketMenuOpen && markets.length}
+        <div class="market-options" id="market-options" role="listbox" aria-label="Markets">
+          {#each filteredMarkets as market}
+            <button
+              type="button"
+              class="market-option"
+              class:market-option-selected={market === selectedCoin}
+              role="option"
+              aria-selected={market === selectedCoin}
+              on:click={() => selectMarket(market)}
+            >{market}-USD</button>
+          {:else}
+            <div class="market-no-results">No matching markets</div>
+          {/each}
+        </div>
+      {/if}
     </div>
   </div>
   <div class="control-divider"></div>
