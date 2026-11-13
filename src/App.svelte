@@ -1,35 +1,49 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import {
-    calculateSmaCrossover,
-    DATE_RANGES,
+    FEE_RATE,
+    formatMonthRange,
     fetchCandles,
     fetchMarkets,
-    type BacktestResult,
+    STARTING_BALANCE,
     type Candle,
   } from './lib/backtest'
+  import { getStrategy, STRATEGY_OPTIONS } from './lib/strategies'
+  import type { StrategyComparison } from './lib/strategies/types'
   import BacktestControls from './lib/components/BacktestControls.svelte'
   import EquityChart from './lib/components/EquityChart.svelte'
   import MarketOverview from './lib/components/MarketOverview.svelte'
-  import MetricsGrid from './lib/components/MetricsGrid.svelte'
   import Sidebar from './lib/components/Sidebar.svelte'
+  import StrategyComparisonResults from './lib/components/StrategyComparisonResults.svelte'
   import TopBar from './lib/components/TopBar.svelte'
+
+  const now = new Date()
+  const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+  const initialStartDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1))
 
   let markets: string[] = []
   let selectedCoin = 'BTC'
-  let selectedInterval = '4h'
-  let selectedRange = 90
-  let fastPeriod = 20
-  let slowPeriod = 50
+  let selectedInterval = '1d'
+  let startMonth = `${initialStartDate.getUTCFullYear()}-${String(initialStartDate.getUTCMonth() + 1).padStart(2, '0')}`
+  let endMonth = currentMonth
+  let selectedStrategyIds = ['buy-and-hold', 'trend-following']
   let candles: Candle[] = []
-  let result: BacktestResult | null = null
+  let comparisons: StrategyComparison[] = []
   let loading = true
   let errorMessage = ''
   let lastUpdated = ''
 
   async function runBacktest() {
-    if (!selectedCoin || fastPeriod < 1 || slowPeriod <= fastPeriod) {
-      errorMessage = 'Choose a market and make sure the slow period is greater than the fast period.'
+    if (!selectedCoin) {
+      errorMessage = 'Choose a market before running the backtest.'
+      return
+    }
+    if (!startMonth || !endMonth || startMonth > endMonth) {
+      errorMessage = 'Start month must be before or equal to end month.'
+      return
+    }
+    if (!selectedStrategyIds.length || selectedStrategyIds.length > 4) {
+      errorMessage = 'Select between 1 and 4 strategies to compare.'
       return
     }
 
@@ -37,14 +51,20 @@
     errorMessage = ''
 
     try {
-      const loadedCandles = await fetchCandles(
-        selectedCoin,
-        selectedInterval,
-        selectedRange,
-        slowPeriod,
-      )
+      const loadedCandles = await fetchCandles(selectedCoin, selectedInterval, startMonth, endMonth)
+      const nextComparisons = selectedStrategyIds.map((id) => {
+        const strategy = getStrategy(id)
+        return {
+          strategy,
+          result: strategy.run(loadedCandles, {
+            startingBalance: STARTING_BALANCE,
+            feeRate: FEE_RATE,
+          }),
+        }
+      })
+
       candles = loadedCandles
-      result = calculateSmaCrossover(loadedCandles, fastPeriod, slowPeriod)
+      comparisons = nextComparisons
       lastUpdated = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Unable to load market data.'
@@ -53,8 +73,7 @@
     }
   }
 
-  $: periodLabel = DATE_RANGES.find((range) => range.days === selectedRange)?.label ?? '90 days'
-
+  $: periodLabel = startMonth && endMonth ? formatMonthRange(startMonth, endMonth) : 'Select a date range'
   onMount(async () => {
     try {
       markets = await fetchMarkets()
@@ -98,9 +117,11 @@
         {markets}
         bind:selectedCoin
         bind:selectedInterval
-        bind:selectedRange
-        bind:fastPeriod
-        bind:slowPeriod
+        bind:startMonth
+        bind:endMonth
+        {currentMonth}
+        strategies={STRATEGY_OPTIONS}
+        bind:selectedStrategyIds
         {loading}
         {errorMessage}
         onRun={runBacktest}
@@ -112,8 +133,8 @@
         {candles}
         {loading}
       />
-      <MetricsGrid {result} {loading} coin={selectedCoin} {periodLabel} />
-      <EquityChart {result} {candles} {loading} />
+      <StrategyComparisonResults {comparisons} {loading} {periodLabel} coin={selectedCoin} />
+      <EquityChart {comparisons} {candles} {loading} />
 
       <footer class="page-footer">
         <span>Built for systematic thinkers.</span>

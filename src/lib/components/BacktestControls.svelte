@@ -1,15 +1,19 @@
 <script lang="ts">
-  import { DATE_RANGES } from '../backtest'
+  import type { StrategyOption } from '../strategies/types'
 
   export let markets: string[]
+  export let strategies: StrategyOption[]
   export let selectedCoin: string
   export let selectedInterval: string
-  export let selectedRange: number
-  export let fastPeriod: number
-  export let slowPeriod: number
+  export let startMonth: string
+  export let endMonth: string
+  export let currentMonth: string
+  export let selectedStrategyIds: string[]
   export let loading: boolean
   export let errorMessage: string
   export let onRun: () => void
+
+  $: canSelectMoreStrategies = selectedStrategyIds.length >= 4
 </script>
 
 <section class="control-panel" aria-label="Backtest configuration">
@@ -37,19 +41,25 @@
     </div>
   </div>
   <div class="control-divider"></div>
-  <div class="control-group">
-    <label for="period">DATE RANGE</label>
-    <div class="select-wrap">
-      <select id="period" bind:value={selectedRange}>
-        {#each DATE_RANGES as range}<option value={range.days}>{range.label}</option>{/each}
-      </select>
-      <span class="select-chevron">⌄</span>
+  <div class="control-group date-range-control">
+    <label for="start-month">DATE RANGE</label>
+    <div class="month-range">
+      <input id="start-month" type="month" bind:value={startMonth} max={endMonth} aria-label="Start month" />
+      <span>to</span>
+      <input
+        id="end-month"
+        type="month"
+        bind:value={endMonth}
+        min={startMonth}
+        max={currentMonth}
+        aria-label="End month"
+      />
     </div>
   </div>
   <div class="control-divider strategy-divider"></div>
-  <div class="control-group strategy-control">
-    <span class="control-label">STRATEGY</span>
-    <div class="strategy-name"><span class="strategy-icon">↗</span> SMA crossover</div>
+  <div class="control-group comparison-control">
+    <span class="control-label">COMPARE</span>
+    <div class="strategy-count">{selectedStrategyIds.length} <span>/ 4 max</span></div>
   </div>
   <div class="control-action">
     <button class="run-button" on:click={onRun} disabled={loading || !markets.length}>
@@ -58,12 +68,29 @@
   </div>
 </section>
 
-<section class="strategy-config" aria-label="Strategy parameters">
-  <div class="config-title"><span class="sliders-icon">≡</span> Strategy parameters</div>
+<section class="strategy-config" aria-label="Choose strategies to compare">
+  <div class="config-title"><span class="sliders-icon">≡</span> Compare strategies</div>
   <div class="config-divider"></div>
-  <label class="period-input" for="fast-period"><span>Fast SMA</span><input id="fast-period" type="number" min="1" max="499" bind:value={fastPeriod} /><span class="bars-label">bars</span></label>
-  <label class="period-input" for="slow-period"><span>Slow SMA</span><input id="slow-period" type="number" min="2" max="500" bind:value={slowPeriod} /><span class="bars-label">bars</span></label>
-  <div class="config-note"><span class="info-icon">i</span> 0.05% fee per trade included</div>
+  <div class="strategy-options">
+    {#each strategies as strategy}
+      <label
+        class="strategy-option"
+        class:strategy-option-selected={selectedStrategyIds.includes(strategy.id)}
+        class:strategy-option-disabled={!selectedStrategyIds.includes(strategy.id) && canSelectMoreStrategies}
+        title={strategy.description}
+      >
+        <input
+          type="checkbox"
+          value={strategy.id}
+          bind:group={selectedStrategyIds}
+          disabled={!selectedStrategyIds.includes(strategy.id) && canSelectMoreStrategies}
+        />
+        <span class="strategy-option-dot" style={`--strategy-color: ${strategy.color}`}></span>
+        <span>{strategy.name}</span>
+      </label>
+    {/each}
+  </div>
+  <div class="config-note"><span class="info-icon">i</span> Up to 4 · 0.05% fee per buy/sell</div>
 </section>
 
 {#if errorMessage}
