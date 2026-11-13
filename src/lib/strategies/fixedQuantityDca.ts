@@ -1,30 +1,41 @@
 import { createBacktestResult } from './performance'
-import type { StrategyDefinition } from './types'
+import type { StrategyDefinition, TradeOrder } from './types'
 
 export const fixedQuantityDcaStrategy: StrategyDefinition = {
   id: 'fixed-quantity-dca',
   name: 'Fixed-Quantity DCA',
-  shortName: 'Fixed-Qty DCA',
+  shortName: 'FixQty DCA',
   category: 'Systematic Investing',
   color: '#74d5bb',
   description: 'Buy a fixed quantity at each candle open based on the first open and starting balance.',
   run(candles, { startingBalance, feeRate }) {
     const quantityPerCandle =
       (startingBalance / candles.length) * (1 - feeRate) / candles[0].o
-    const equity: number[] = []
+    const equity: number[] = [startingBalance]
     let cash = startingBalance
     let units = 0
     let trades = 0
     let feesPaid = 0
+    const orders: TradeOrder[] = []
 
     for (const candle of candles) {
       const plannedBudget = (quantityPerCandle * candle.o) / (1 - feeRate)
       const amountToInvest = Math.min(plannedBudget, cash)
       if (amountToInvest > 0) {
-        units += (amountToInvest * (1 - feeRate)) / candle.o
+        const quantity = (amountToInvest * (1 - feeRate)) / candle.o
+        const fee = amountToInvest * feeRate
+        units += quantity
         cash -= amountToInvest
-        feesPaid += amountToInvest * feeRate
+        feesPaid += fee
         trades += 1
+        orders.push({
+          timestamp: candle.t,
+          side: 'buy',
+          price: candle.o,
+          quantity,
+          notional: quantity * candle.o,
+          fee,
+        })
       }
       equity.push(cash + units * candle.c)
     }
@@ -33,6 +44,7 @@ export const fixedQuantityDcaStrategy: StrategyDefinition = {
       unitsOwned: units,
       cashBalance: Math.max(cash, 0),
       feesPaid,
+      orders,
     })
   },
 }

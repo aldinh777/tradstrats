@@ -16,6 +16,7 @@
   import Sidebar from './lib/components/Sidebar.svelte'
   import StrategyComparisonResults from './lib/components/StrategyComparisonResults.svelte'
   import TopBar from './lib/components/TopBar.svelte'
+  import TradeHistory from './lib/components/TradeHistory.svelte'
 
   const now = new Date()
   const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
@@ -35,17 +36,14 @@
   let endMonth = currentMonth
   let selectedStrategyIds = [
     'buy-and-hold',
-    'n-candle-momentum-1',
+    'dca',
     'n-candle-momentum-2',
-    'n-candle-momentum-3',
-    'n-candle-momentum-4',
-    'n-candle-momentum-5',
-    'n-candle-momentum-6',
-    'n-candle-momentum-7',
   ]
   let candles: Candle[] = []
   let comparisons: StrategyComparison[] = []
   let hoveredStrategyId: string | null = null
+  let activeStrategyId: string | null = null
+  let sidebarCollapsed = false
   let loading = true
   let errorMessage = ''
   let lastUpdated = ''
@@ -90,6 +88,7 @@
   }
 
   $: periodLabel = startMonth && endMonth ? formatMonthRange(startMonth, endMonth) : 'Select a date range'
+  $: highlightedStrategyId = hoveredStrategyId ?? activeStrategyId
   onMount(async () => {
     try {
       markets = await fetchMarkets()
@@ -110,11 +109,14 @@
   />
 </svelte:head>
 
-<div class="app-shell">
+<div class="app-shell" class:sidebar-collapsed={sidebarCollapsed}>
   <Sidebar connected={!!lastUpdated} />
 
   <main id="workspace">
-    <TopBar />
+    <TopBar
+      {sidebarCollapsed}
+      onToggleSidebar={() => (sidebarCollapsed = !sidebarCollapsed)}
+    />
 
     <div class="page-content" id="backtest">
       <section class="page-heading">
@@ -155,9 +157,14 @@
         {periodLabel}
         coin={selectedCoin}
         {hoveredStrategyId}
+        {activeStrategyId}
         onHover={(strategyId) => (hoveredStrategyId = strategyId)}
+        onToggleActive={(strategyId) => {
+          activeStrategyId = activeStrategyId === strategyId ? null : strategyId
+        }}
       />
-      <EquityChart {comparisons} {candles} {loading} {hoveredStrategyId} />
+      <EquityChart {comparisons} {candles} {loading} {highlightedStrategyId} />
+      <TradeHistory {comparisons} coin={selectedCoin} />
 
       <footer class="page-footer">
         <span>Built for systematic thinkers.</span>

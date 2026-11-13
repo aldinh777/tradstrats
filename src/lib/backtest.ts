@@ -166,6 +166,24 @@ export function chartPaths(series: number[][]) {
   return { paths, fill }
 }
 
+export function chartPoint(
+  series: number[][],
+  seriesIndex: number,
+  pointIndex: number,
+): { x: number; y: number } | null {
+  const values = series[seriesIndex]
+  if (!values || pointIndex < 0 || pointIndex >= values.length) return null
+
+  const allValues = series.flat()
+  const low = Math.min(...allValues) * 0.98
+  const high = Math.max(...allValues) * 1.02
+  const span = high - low || 1
+  return {
+    x: 12 + (pointIndex / Math.max(values.length - 1, 1)) * 936,
+    y: 286 - ((values[pointIndex] - low) / span) * 252,
+  }
+}
+
 export function chartYLabels(series: number[][]): number[] {
   const allValues = series.flat()
   const low = Math.min(...allValues) * 0.98

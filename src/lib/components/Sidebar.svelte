@@ -2,7 +2,7 @@
   export let connected: boolean
 </script>
 
-<aside class="sidebar">
+<aside class="sidebar" id="app-sidebar">
   <a class="brand" href="#workspace" aria-label="tradstrats home">
     <span class="brand-mark"><span></span><span></span><span></span></span>
     <span>tradstrats</span>

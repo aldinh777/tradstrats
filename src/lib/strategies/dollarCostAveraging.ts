@@ -1,5 +1,5 @@
 import { createBacktestResult } from './performance'
-import type { StrategyDefinition } from './types'
+import type { StrategyDefinition, TradeOrder } from './types'
 
 export const dollarCostAveragingStrategy: StrategyDefinition = {
   id: 'dca',
@@ -10,19 +10,30 @@ export const dollarCostAveragingStrategy: StrategyDefinition = {
   description: 'Invest a fixed USD amount at each candle open, then hold the purchases.',
   run(candles, { startingBalance, feeRate }) {
     const amountPerCandle = startingBalance / candles.length
-    const equity: number[] = []
+    const equity: number[] = [startingBalance]
     let cash = startingBalance
     let units = 0
     let trades = 0
     let feesPaid = 0
+    const orders: TradeOrder[] = []
 
     for (const candle of candles) {
       const amountToInvest = Math.min(amountPerCandle, cash)
       if (amountToInvest > 0) {
-        units += (amountToInvest * (1 - feeRate)) / candle.o
+        const quantity = (amountToInvest * (1 - feeRate)) / candle.o
+        const fee = amountToInvest * feeRate
+        units += quantity
         cash -= amountToInvest
-        feesPaid += amountToInvest * feeRate
+        feesPaid += fee
         trades += 1
+        orders.push({
+          timestamp: candle.t,
+          side: 'buy',
+          price: candle.o,
+          quantity,
+          notional: quantity * candle.o,
+          fee,
+        })
       }
       equity.push(cash + units * candle.c)
     }
@@ -31,6 +42,7 @@ export const dollarCostAveragingStrategy: StrategyDefinition = {
       unitsOwned: units,
       cashBalance: Math.max(cash, 0),
       feesPaid,
+      orders,
     })
   },
 }

@@ -1,16 +1,16 @@
 import { createBacktestResult } from './performance'
-import type { StrategyDefinition } from './types'
+import type { StrategyDefinition, TradeOrder } from './types'
 
 function createNCandleMomentumStrategy(momentumN: number, color: string): StrategyDefinition {
   return {
     id: `n-candle-momentum-${momentumN}`,
     name: `${momentumN}-Candle Momentum`,
-    shortName: `${momentumN}-Candle`,
-    category: 'Momentum Trading',
+    shortName: `${momentumN}-CDM`,
+    category: 'Candle Momentum',
     color,
     description: `Buy after ${momentumN} consecutive bullish candles and sell after ${momentumN} consecutive bearish candles.`,
     run(candles, { startingBalance, feeRate }) {
-      const equity: number[] = []
+      const equity: number[] = [startingBalance]
       let cash = startingBalance
       let units = 0
       let inPosition = false
@@ -19,18 +19,38 @@ function createNCandleMomentumStrategy(momentumN: number, color: string): Strate
       let pendingAction: 'buy' | 'sell' | null = null
       let trades = 0
       let feesPaid = 0
+      const orders: TradeOrder[] = []
 
       for (const candle of candles) {
         if (pendingAction === 'buy' && !inPosition && cash > 0) {
-          feesPaid += cash * feeRate
+          const fee = cash * feeRate
           units = (cash * (1 - feeRate)) / candle.o
+          const notional = units * candle.o
+          feesPaid += fee
+          orders.push({
+            timestamp: candle.t,
+            side: 'buy',
+            price: candle.o,
+            quantity: units,
+            notional,
+            fee,
+          })
           cash = 0
           inPosition = true
           trades += 1
         } else if (pendingAction === 'sell' && inPosition) {
           const saleValue = units * candle.o
-          feesPaid += saleValue * feeRate
-          cash = saleValue * (1 - feeRate)
+          const fee = saleValue * feeRate
+          feesPaid += fee
+          orders.push({
+            timestamp: candle.t,
+            side: 'sell',
+            price: candle.o,
+            quantity: units,
+            notional: saleValue,
+            fee,
+          })
+          cash = saleValue - fee
           units = 0
           inPosition = false
           trades += 1
@@ -61,6 +81,7 @@ function createNCandleMomentumStrategy(momentumN: number, color: string): Strate
         unitsOwned: units,
         cashBalance: cash,
         feesPaid,
+        orders,
       })
     },
   }

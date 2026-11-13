@@ -1,10 +1,10 @@
-import type { BacktestResult } from './types'
+import type { BacktestResult, TradeOrder } from './types'
 
 export function createBacktestResult(
   equity: number[],
   trades: number,
   startingBalance: number,
-  position: { unitsOwned: number; cashBalance: number; feesPaid: number },
+  position: { unitsOwned: number; cashBalance: number; feesPaid: number; orders: TradeOrder[] },
 ): BacktestResult {
   const finalBalance = equity[equity.length - 1]
 

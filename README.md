@@ -20,6 +20,8 @@ Run the strategy tests with `bun run test`, Svelte and TypeScript checks with `b
 - **Systematic Investing:** Dollar Cost Averaging invests a fixed USD amount per candle; Value Averaging adjusts holdings toward a linearly increasing portfolio-value target; Fixed-Quantity DCA buys a fixed quantity per candle calculated from the initial open and starting balance.
 - **Momentum Trading:** Compare separate 1- through 7-Candle Momentum strategies. Each enters after N consecutive bullish candles and exits after N consecutive bearish candles.
 - Strategy orders based on candle data execute at the next candle's open after the signal candle closes. Systematic purchases are also placed at candle opens; orders are limited by the starting cash balance.
+- The trade activity table lists each strategy order's timestamp, side, quantity, execution price, notional, and fee.
+- Hover over a result card to highlight its equity curve and show its buy/sell markers. Click a card to keep that strategy highlighted; click it again to clear the selection. Hover a chart marker for its execution details.
 - The default timeframe is one day and the default date range covers approximately six months. Each strategy result includes ending units owned, cash left, and total fees paid. A 0.05% fee is charged on each buy or sell.
 - Candles are requested from the Hyperliquid `/info` endpoint using `meta` and `candleSnapshot` requests.
 

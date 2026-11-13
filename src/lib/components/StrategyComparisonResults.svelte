@@ -7,7 +7,9 @@
   export let periodLabel: string
   export let coin: string
   export let hoveredStrategyId: string | null
+  export let activeStrategyId: string | null
   export let onHover: (strategyId: string | null) => void
+  export let onToggleActive: (strategyId: string) => void
 </script>
 
 <section class="comparison-grid" aria-label="Strategy comparison results">
@@ -16,9 +18,18 @@
       <article
         class="comparison-card"
         class:comparison-card-hovered={hoveredStrategyId === comparison.strategy.id}
+        class:comparison-card-active={activeStrategyId === comparison.strategy.id}
+        style={`--strategy-color: ${comparison.strategy.color}`}
         on:mouseenter={() => onHover(comparison.strategy.id)}
         on:mouseleave={() => onHover(null)}
       >
+        <button
+          class="comparison-card-toggle"
+          type="button"
+          aria-label={`Toggle chart focus for ${comparison.strategy.name}`}
+          aria-pressed={activeStrategyId === comparison.strategy.id}
+          on:click={() => onToggleActive(comparison.strategy.id)}
+        ></button>
         <div class="comparison-card-heading">
           <span class="comparison-dot" style={`--strategy-color: ${comparison.strategy.color}`}></span>
           <strong>{comparison.strategy.name}</strong>

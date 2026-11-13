@@ -7,6 +7,15 @@ export type Candle = {
   v: number
 }
 
+export type TradeOrder = {
+  timestamp: number
+  side: 'buy' | 'sell'
+  price: number
+  quantity: number
+  notional: number
+  fee: number
+}
+
 export type BacktestResult = {
   equity: number[]
   totalReturn: number
@@ -16,12 +25,13 @@ export type BacktestResult = {
   unitsOwned: number
   cashBalance: number
   feesPaid: number
+  orders: TradeOrder[]
 }
 
 export const STRATEGY_CATEGORIES = [
   'Passive Investing',
   'Systematic Investing',
-  'Momentum Trading',
+  'Candle Momentum',
 ] as const
 
 export type StrategyCategory = (typeof STRATEGY_CATEGORIES)[number]
