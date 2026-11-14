@@ -177,10 +177,34 @@ export function chartPoint(
   const allValues = series.flat()
   const low = Math.min(...allValues) * 0.98
   const high = Math.max(...allValues) * 1.02
+  return chartPointForRange(values[pointIndex], pointIndex, values.length, low, high)
+}
+
+export function chartPointForRange(
+  value: number,
+  pointIndex: number,
+  pointCount: number,
+  low: number,
+  high: number,
+): { x: number; y: number } | null {
+  if (
+    !Number.isFinite(value) ||
+    !Number.isFinite(pointIndex) ||
+    pointIndex < 0 ||
+    !Number.isInteger(pointCount) ||
+    pointCount < 1 ||
+    pointIndex >= pointCount ||
+    !Number.isFinite(low) ||
+    !Number.isFinite(high) ||
+    high < low
+  ) {
+    return null
+  }
+
   const span = high - low || 1
   return {
-    x: 12 + (pointIndex / Math.max(values.length - 1, 1)) * 936,
-    y: 286 - ((values[pointIndex] - low) / span) * 252,
+    x: 12 + (pointIndex / Math.max(pointCount - 1, 1)) * 936,
+    y: 286 - ((value - low) / span) * 252,
   }
 }
 

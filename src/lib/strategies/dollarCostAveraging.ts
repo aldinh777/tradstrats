@@ -6,7 +6,7 @@ export const dollarCostAveragingStrategy: StrategyDefinition = {
   name: 'Dollar Cost Averaging (DCA)',
   shortName: 'DCA',
   category: 'Systematic Investing',
-  color: '#74baff',
+  color: '#9aa3a8',
   description: 'Invest a fixed USD amount at each candle open, then hold the purchases.',
   run(candles, { startingBalance, feeRate }) {
     const amountPerCandle = startingBalance / candles.length

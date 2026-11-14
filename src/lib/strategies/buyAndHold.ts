@@ -5,7 +5,7 @@ export const buyAndHoldStrategy: StrategyDefinition = {
   id: 'buy-and-hold',
   name: 'Buy & hold',
   category: 'Passive Investing',
-  color: '#b9f277',
+  color: '#74baff',
   description: 'Buy at the first candle open and hold through the end of the test.',
   run(candles, { startingBalance, feeRate }) {
     const firstPrice = candles[0].o

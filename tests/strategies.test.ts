@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { chartPoint } from '../src/lib/backtest'
+import { chartPoint, chartPointForRange } from '../src/lib/backtest'
 import { buyAndHoldStrategy } from '../src/lib/strategies/buyAndHold'
 import { constantProportionRebalancingStrategy } from '../src/lib/strategies/constantProportionRebalancing'
 import { dollarCostAveragingStrategy } from '../src/lib/strategies/dollarCostAveraging'
@@ -33,6 +33,12 @@ describe('chart trade marker coordinates', () => {
     expect(chartPoint([[100, 200], [150, 300]], 1, 0)?.x).toBe(12)
     expect(chartPoint([[100, 200], [150, 300]], 1, 1)?.x).toBe(948)
     expect(chartPoint([[100, 200]], 0, 2)).toBeNull()
+  })
+
+  test('positions price markers by execution price on the shared price scale', () => {
+    expect(chartPointForRange(150, 1, 3, 100, 200)).toEqual({ x: 480, y: 160 })
+    expect(chartPointForRange(150, 0.5, 3, 100, 200)?.x).toBe(246)
+    expect(chartPointForRange(150, 3, 3, 100, 200)).toBeNull()
   })
 })
 

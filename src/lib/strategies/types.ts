@@ -16,6 +16,10 @@ export type TradeOrder = {
   fee: number
 }
 
+export type IdentifiedTradeOrder = TradeOrder & {
+  strategyId: string
+}
+
 export const MIN_ORDER_NOTIONAL = 10
 
 export type BacktestResult = {

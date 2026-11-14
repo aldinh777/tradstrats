@@ -4,7 +4,7 @@ import { MIN_ORDER_NOTIONAL, type StrategyDefinition, type TradeOrder } from './
 export const constantProportionRebalancingStrategy: StrategyDefinition = {
   id: 'constant-proportion-rebalancing',
   name: 'Constant Proportion Rebalancing',
-  shortName: '50:50',
+  shortName: '1:1',
   category: 'Systematic Investing',
   color: '#f9e2af',
   description: 'Start with equal asset and cash allocations, then rebalance to 50:50 at each candle open.',

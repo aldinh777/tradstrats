@@ -9,10 +9,11 @@
     type Candle,
   } from './lib/backtest'
   import { getStrategy, STRATEGY_OPTIONS } from './lib/strategies'
-  import type { StrategyComparison } from './lib/strategies/types'
+  import type { IdentifiedTradeOrder, StrategyComparison } from './lib/strategies/types'
   import BacktestControls from './lib/components/BacktestControls.svelte'
   import EquityChart from './lib/components/EquityChart.svelte'
   import MarketOverview from './lib/components/MarketOverview.svelte'
+  import PriceChart from './lib/components/PriceChart.svelte'
   import Sidebar from './lib/components/Sidebar.svelte'
   import StrategyComparisonResults from './lib/components/StrategyComparisonResults.svelte'
   import TopBar from './lib/components/TopBar.svelte'
@@ -43,6 +44,7 @@
   let comparisons: StrategyComparison[] = []
   let hoveredStrategyId: string | null = null
   let activeStrategyId: string | null = null
+  let hoveredOrder: IdentifiedTradeOrder | null = null
   let sidebarCollapsed = false
   let loading = true
   let errorMessage = ''
@@ -89,6 +91,7 @@
 
   $: periodLabel = startMonth && endMonth ? formatMonthRange(startMonth, endMonth) : 'Select a date range'
   $: highlightedStrategyId = hoveredStrategyId ?? activeStrategyId
+  $: selectedStrategyId = highlightedStrategyId ?? comparisons[0]?.strategy.id ?? null
   onMount(async () => {
     try {
       markets = await fetchMarkets()
@@ -164,7 +167,23 @@
         }}
       />
       <EquityChart {comparisons} {candles} {loading} {highlightedStrategyId} />
-      <TradeHistory {comparisons} coin={selectedCoin} />
+      <PriceChart
+        coin={selectedCoin}
+        interval={selectedInterval}
+        {comparisons}
+        {candles}
+        {loading}
+        {highlightedStrategyId}
+        {hoveredOrder}
+        onHoverOrder={(order) => (hoveredOrder = order)}
+      />
+      <TradeHistory
+        {comparisons}
+        coin={selectedCoin}
+        {selectedStrategyId}
+        {hoveredOrder}
+        onHoverOrder={(order) => (hoveredOrder = order)}
+      />
 
       <footer class="page-footer">
         <span>Built for systematic thinkers.</span>
