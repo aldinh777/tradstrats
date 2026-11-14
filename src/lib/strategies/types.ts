@@ -38,6 +38,7 @@ export const STRATEGY_CATEGORIES = [
   'Passive Investing',
   'Systematic Investing',
   'Candle Momentum',
+  'Technical Analysis',
 ] as const
 
 export type StrategyCategory = (typeof STRATEGY_CATEGORIES)[number]

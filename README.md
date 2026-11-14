@@ -18,7 +18,8 @@ Run the strategy tests with `bun run test`, Svelte and TypeScript checks with `b
 - Compare any number of registered strategies on the same market, timeframe, and date range.
 - **Passive Investing:** Buy & Hold purchases at the first candle's open and holds through the test.
 - **Systematic Investing:** Dollar Cost Averaging invests a fixed USD amount per candle; Value Averaging adjusts holdings toward a linearly increasing portfolio-value target; Fixed-Quantity DCA buys a fixed quantity per candle calculated from the initial open and starting balance; Constant Proportion Rebalancing starts with equal asset/cash allocations and rebalances to a 50:50 ratio at each candle open.
-- **Momentum Trading:** Compare separate 1- through 7-Candle Momentum strategies. Each enters after N consecutive bullish candles and exits after N consecutive bearish candles.
+- **Candle Momentum:** Compare separate 1- through 7-Candle Momentum strategies. Each enters after N consecutive bullish candles and exits after N consecutive bearish candles.
+- **Technical Analysis:** SMA Cross (9/21), EMA Cross (9/21), MACD (12/26/9), RSI Mean Reversion (14-period RSI, 30/70 thresholds), Bollinger Band Reversion (20 periods, 2σ), Donchian Breakout (20 periods), Supertrend (ATR 10, multiplier 3), and Parabolic SAR (0.02 acceleration step, 0.2 maximum).
 - Strategy orders based on candle data execute at the next candle's open after the signal candle closes. Systematic purchases are also placed at candle opens; orders are limited by the starting cash balance.
 - The trade activity table lists each strategy order's timestamp, side, quantity, execution price, notional, and fee.
 - Each strategy skips buy or sell orders below $10 notional.

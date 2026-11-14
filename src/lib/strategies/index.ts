@@ -3,6 +3,7 @@ import { constantProportionRebalancingStrategy } from './constantProportionRebal
 import { dollarCostAveragingStrategy } from './dollarCostAveraging'
 import { fixedQuantityDcaStrategy } from './fixedQuantityDca'
 import { nCandleMomentumStrategies } from './nCandleMomentum'
+import { technicalAnalysisStrategies } from './technicalAnalysis'
 import { valueCostAveragingStrategy } from './valueCostAveraging'
 import type { StrategyDefinition, StrategyOption } from './types'
 
@@ -13,6 +14,7 @@ export const STRATEGIES: StrategyDefinition[] = [
   valueCostAveragingStrategy,
   fixedQuantityDcaStrategy,
   ...nCandleMomentumStrategies,
+  ...technicalAnalysisStrategies,
 ]
 
 export const STRATEGY_OPTIONS: StrategyOption[] = STRATEGIES.map(
