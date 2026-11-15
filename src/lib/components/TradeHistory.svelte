@@ -1,9 +1,11 @@
 <script lang="ts">
-  import { formatCurrency, formatUnits } from '../backtest'
+  import { formatCurrency, formatNumber, formatUnits } from '../backtest'
   import type { IdentifiedTradeOrder, StrategyComparison } from '../strategies/types'
 
   export let comparisons: StrategyComparison[]
   export let coin: string
+  export let quoteCurrency: string
+  export let marketType: 'perpetual' | 'forex'
   export let selectedStrategyId: string | null
   export let hoveredOrder: IdentifiedTradeOrder | null
   export let onHoverOrder: (order: IdentifiedTradeOrder | null) => void
@@ -24,7 +26,7 @@
   <div class="trade-history-heading">
     <div>
       <h2>Trade activity</h2>
-      <p>Strategy orders executed at candle opens, including amount and fees.</p>
+      <p>Orders execute at the next available candle open or daily reference observation.</p>
     </div>
     <span>{orders.length} orders</span>
   </div>
@@ -61,9 +63,11 @@
                 {order.side.toUpperCase()}
               </td>
               <td>{formatUnits(order.quantity)} {coin}</td>
-              <td>{formatCurrency(order.price)}</td>
-              <td>{formatCurrency(order.notional)}</td>
-              <td>{formatCurrency(order.fee)}</td>
+              <td>{marketType === 'forex'
+                ? `${formatNumber(order.price, 5)} ${quoteCurrency}`
+                : formatCurrency(order.price, quoteCurrency)}</td>
+              <td>{formatCurrency(order.notional, quoteCurrency)}</td>
+              <td>{formatCurrency(order.fee, quoteCurrency)}</td>
             </tr>
           {/each}
         </tbody>

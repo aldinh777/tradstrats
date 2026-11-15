@@ -5,7 +5,7 @@
   export let comparisons: StrategyComparison[]
   export let loading: boolean
   export let periodLabel: string
-  export let coin: string
+  export let quoteCurrency: string
   export let hoveredStrategyId: string | null
   export let activeStrategyId: string | null
   export let onHover: (strategyId: string | null) => void
@@ -43,10 +43,10 @@
         <div class="comparison-stats">
           <div><span>MAX DRAWDOWN</span><strong>{comparison.result.maxDrawdown.toFixed(2)}%</strong></div>
           <div><span>ORDERS</span><strong>{comparison.result.trades}</strong></div>
-          <div><span>ENDING BALANCE</span><strong>{formatCurrency(comparison.result.finalBalance)}</strong></div>
+          <div><span>ENDING BALANCE</span><strong>{formatCurrency(comparison.result.finalBalance, quoteCurrency)}</strong></div>
           <div><span>UNITS OWNED</span><strong>{formatUnits(comparison.result.unitsOwned)}</strong></div>
-          <div><span>CASH LEFT</span><strong>{formatCurrency(comparison.result.cashBalance)}</strong></div>
-          <div><span>FEES PAID</span><strong>{formatCurrency(comparison.result.feesPaid)}</strong></div>
+          <div><span>CASH LEFT</span><strong>{formatCurrency(comparison.result.cashBalance, quoteCurrency)}</strong></div>
+          <div><span>FEES PAID</span><strong>{formatCurrency(comparison.result.feesPaid, quoteCurrency)}</strong></div>
         </div>
       </article>
     {/each}

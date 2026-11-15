@@ -4,7 +4,7 @@ export type Candle = {
   h: number
   l: number
   c: number
-  v: number
+  v: number | null
 }
 
 export type TradeOrder = {

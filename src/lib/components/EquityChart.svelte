@@ -12,6 +12,7 @@
   export let candles: Candle[]
   export let loading: boolean
   export let highlightedStrategyId: string | null
+  export let currency: string
 
   $: series = comparisons.map((comparison) => comparison.result.equity)
   $: paths = chartPaths(series)
@@ -22,7 +23,7 @@
   <div class="chart-header">
     <div>
       <h2>Equity curve</h2>
-      <p>Portfolio value over time · starting balance {formatCurrency(STARTING_BALANCE)}</p>
+      <p>Portfolio value over time · starting balance {formatCurrency(STARTING_BALANCE, currency)}</p>
     </div>
     <div class="chart-legend">
       {#each comparisons as comparison}
@@ -35,9 +36,9 @@
   </div>
   <div class="chart-body">
     {#if loading && !comparisons.length}
-      <div class="chart-loading"><span class="spinner"></span> Fetching historical candles from Hyperliquid…</div>
+      <div class="chart-loading"><span class="spinner"></span> Fetching historical market data…</div>
     {:else if comparisons.length && candles.length}
-      <div class="chart-y-labels">{#each yLabels as label}<span>{formatCurrency(label)}</span>{/each}</div>
+      <div class="chart-y-labels">{#each yLabels as label}<span>{formatCurrency(label, currency)}</span>{/each}</div>
       <svg class="equity-chart" viewBox="0 0 960 310" preserveAspectRatio="none" role="img" aria-label="Equity curves for selected strategies">
         <defs>
           <linearGradient id="area-fill" x1="0" x2="0" y1="0" y2="1">
@@ -68,7 +69,7 @@
   </div>
   {#if comparisons.length}
     <div class="chart-footer">
-      <div><span class="footer-label">STARTING BALANCE</span><strong>{formatCurrency(STARTING_BALANCE)}</strong></div>
+      <div><span class="footer-label">STARTING BALANCE</span><strong>{formatCurrency(STARTING_BALANCE, currency)}</strong></div>
       <div><span class="footer-label">CANDLES ANALYZED</span><strong>{candles.length.toLocaleString()}</strong></div>
       <div class="chart-footer-note">Past performance does not guarantee future results.</div>
     </div>

@@ -1,54 +1,17 @@
 import type { Candle } from './strategies/types'
+import { hyperliquidProvider, HYPERLIQUID_TIMEFRAMES } from './data/providers/hyperliquid'
 
 export type { BacktestResult, Candle } from './strategies/types'
 
 export const STARTING_BALANCE = 10_000
 export const FEE_RATE = 0.0005
-export const TIMEFRAMES = [
-  { value: '12h', label: '12 hours', apiInterval: '12h' },
-  { value: '1d', label: '1 day', apiInterval: '1d' },
-  { value: '3d', label: '3 days', apiInterval: '3d' },
-  { value: '7d', label: '7 days', apiInterval: '1w' },
-  { value: '1M', label: '1 month', apiInterval: '1M' },
-] as const
-
-const API_URL = 'https://api.hyperliquid.xyz/info'
-
-async function postInfo(payload: Record<string, unknown>): Promise<unknown> {
-  const response = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Hyperliquid API returned ${response.status}. Please try again.`)
-  }
-
-  return response.json()
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
+export const TIMEFRAMES = HYPERLIQUID_TIMEFRAMES
 
 export async function fetchMarkets(): Promise<string[]> {
-  const response = await postInfo({ type: 'meta' })
-  if (!isRecord(response) || !Array.isArray(response.universe)) {
-    throw new Error('Hyperliquid did not return a valid market list.')
-  }
-
-  const markets: string[] = []
-  for (const market of response.universe) {
-    if (!isRecord(market) || typeof market.name !== 'string') {
-      throw new Error('Hyperliquid did not return a valid market list.')
-    }
-    markets.push(market.name)
-  }
-  return markets
+  return (await hyperliquidProvider.listInstruments()).map((market) => market.baseCurrency)
 }
 
-function monthStartTimestamp(value: string): number {
+export function monthStartTimestamp(value: string): number {
   const match = /^(\d{4})-(\d{2})$/.exec(value)
   if (!match) throw new Error('Choose a valid start and end month.')
 
@@ -57,6 +20,20 @@ function monthStartTimestamp(value: string): number {
   if (month < 1 || month > 12) throw new Error('Choose a valid start and end month.')
 
   return Date.UTC(year, month - 1, 1)
+}
+
+export function monthRangeTimestamps(startMonth: string, endMonth: string): {
+  startTime: number
+  endTime: number
+} {
+  const startTime = monthStartTimestamp(startMonth)
+  const endMonthStart = monthStartTimestamp(endMonth)
+  if (startTime > endMonthStart) {
+    throw new Error('Start month must be before or equal to end month.')
+  }
+  const [endYear, endMonthNumber] = endMonth.split('-').map(Number)
+  const endExclusive = Date.UTC(endYear, endMonthNumber, 1)
+  return { startTime, endTime: Math.min(endExclusive - 1, Date.now()) }
 }
 
 export function formatMonthLabel(value: string): string {
@@ -78,63 +55,44 @@ export async function fetchCandles(
   startMonth: string,
   endMonth: string,
 ): Promise<Candle[]> {
-  const timeframe = TIMEFRAMES.find((item) => item.value === interval)
-  if (!timeframe) throw new Error('Choose a supported candle timeframe.')
-
-  const startTime = monthStartTimestamp(startMonth)
-  const endMonthStart = monthStartTimestamp(endMonth)
-  if (startTime > endMonthStart) {
-    throw new Error('Start month must be before or equal to end month.')
-  }
-
-  const [endYear, endMonthNumber] = endMonth.split('-').map(Number)
-  const endExclusive = Date.UTC(endYear, endMonthNumber, 1)
-  const endTime = Math.min(endExclusive - 1, Date.now())
+  const { startTime, endTime } = monthRangeTimestamps(startMonth, endMonth)
   if (startTime > endTime) {
     throw new Error('The selected date range cannot start in the future.')
   }
-
-  const response = await postInfo({
-    type: 'candleSnapshot',
-    req: { coin, interval: timeframe.apiInterval, startTime, endTime },
-  })
-
-  if (!Array.isArray(response)) {
-    throw new Error('The market data response was not in the expected format.')
+  const instrument = {
+    id: `hyperliquid:${coin}`,
+    providerId: 'hyperliquid' as const,
+    symbol: `${coin}/USD`,
+    name: `${coin} perpetual`,
+    baseCurrency: coin,
+    quoteCurrency: 'USD',
+    marketType: 'perpetual' as const,
   }
-
-  const candles: Candle[] = response
-    .filter(isRecord)
-    .map((item) => ({
-      t: Number(item.t),
-      o: Number(item.o),
-      h: Number(item.h),
-      l: Number(item.l),
-      c: Number(item.c),
-      v: Number(item.v),
-    }))
-    .filter(
-      (candle) =>
-        Number.isFinite(candle.t) &&
-        Number.isFinite(candle.o) &&
-        candle.o > 0 &&
-        Number.isFinite(candle.c) &&
-        candle.c > 0,
-    )
-    .sort((a, b) => a.t - b.t)
-
+  const candles = await hyperliquidProvider.fetchCandles(instrument, interval, startTime, endTime)
   if (candles.length < 2) {
     throw new Error(`Only ${candles.length} candles were returned. Choose a longer date range.`)
   }
-
   return candles
 }
 
-export function formatCurrency(value: number): string {
+export function formatCurrency(value: number, currency = 'USD'): string {
+  if (currency === 'USD') {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: value < 100 ? 2 : 0,
+    }).format(value)
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: value < 100 ? 2 : 0,
+    currency,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+export function formatNumber(value: number, maximumFractionDigits = 4): string {
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits,
   }).format(value)
 }
 

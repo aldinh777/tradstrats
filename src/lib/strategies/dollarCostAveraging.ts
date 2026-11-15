@@ -7,7 +7,7 @@ export const dollarCostAveragingStrategy: StrategyDefinition = {
   shortName: 'DCA',
   category: 'Systematic Investing',
   color: '#9aa3a8',
-  description: 'Invest a fixed USD amount at each candle open, then hold the purchases.',
+  description: 'Invest a fixed quote-currency amount at each candle open, then hold the purchases.',
   run(candles, { startingBalance, feeRate }) {
     const amountPerCandle = startingBalance / candles.length
     const equity: number[] = [startingBalance]

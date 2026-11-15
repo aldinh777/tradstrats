@@ -1,10 +1,14 @@
 <script lang="ts">
-  import { formatMonthLabel, TIMEFRAMES } from '../backtest'
+  import { formatMonthLabel } from '../backtest'
+  import type { MarketInstrument, TimeframeOption } from '../data/types'
   import { STRATEGY_CATEGORIES, type StrategyCategory, type StrategyOption } from '../strategies/types'
 
-  export let markets: string[]
+  export let markets: MarketInstrument[]
+  export let selectedInstrumentId: string
+  export let quoteCurrency: string
+  export let timeframes: readonly TimeframeOption[]
   export let strategies: StrategyOption[]
-  export let selectedCoin: string
+  export let onSelectInstrument: (instrumentId: string) => void
   export let selectedInterval: string
   export let startMonth: string
   export let endMonth: string
@@ -14,35 +18,40 @@
   export let errorMessage: string
   export let onRun: () => void
 
-  let marketQuery = selectedCoin
+  let marketQuery = ''
   let marketMenuOpen = false
 
   $: startMonthOptions = monthOptions.filter((month) => month <= endMonth)
   $: endMonthOptions = monthOptions.filter((month) => month >= startMonth)
+  $: selectedMarket = markets.find((market) => market.id === selectedInstrumentId)
   $: filteredMarkets = markets.filter((market) =>
-    market.toLowerCase().includes(marketQuery.trim().toLowerCase()),
+    `${market.symbol} ${market.name} ${market.providerId}`
+      .toLowerCase()
+      .includes(marketQuery.trim().toLowerCase()),
   )
   $: strategyGroups = STRATEGY_CATEGORIES.map((category: StrategyCategory) => ({
     category,
     strategies: strategies.filter((strategy) => strategy.category === category),
   })).filter((group) => group.strategies.length > 0)
-  $: if (!marketMenuOpen && marketQuery !== selectedCoin) marketQuery = selectedCoin
+  $: if (!marketMenuOpen && marketQuery !== (selectedMarket?.symbol ?? '')) {
+    marketQuery = selectedMarket?.symbol ?? ''
+  }
 
   function openMarketMenu() {
-    if (marketQuery === selectedCoin) marketQuery = ''
+    if (marketQuery === selectedMarket?.symbol) marketQuery = ''
     marketMenuOpen = true
   }
 
-  function selectMarket(market: string) {
-    selectedCoin = market
-    marketQuery = market
+  function selectMarket(market: MarketInstrument) {
+    onSelectInstrument(market.id)
+    marketQuery = market.symbol
     marketMenuOpen = false
   }
 
   function handleMarketKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       marketMenuOpen = false
-      marketQuery = selectedCoin
+      marketQuery = selectedMarket?.symbol ?? ''
     } else if (event.key === 'ArrowDown') {
       event.preventDefault()
       marketMenuOpen = true
@@ -63,7 +72,7 @@
       return
     }
     marketMenuOpen = false
-    marketQuery = selectedCoin
+    marketQuery = selectedMarket?.symbol ?? ''
   }
 </script>
 
@@ -71,7 +80,7 @@
   <div class="control-group market-control">
     <label for="market">MARKET</label>
     <div class="market-picker" role="group" aria-label="Select market" on:focusout={handleMarketFocusOut}>
-      <span class="coin-icon">{selectedCoin.slice(0, 1)}</span>
+      <span class="coin-icon">{selectedMarket?.baseCurrency.slice(0, 1) ?? '?'}</span>
       <input
         id="market"
         type="search"
@@ -80,7 +89,7 @@
         aria-autocomplete="list"
         aria-expanded={marketMenuOpen}
         aria-controls="market-options"
-        placeholder={markets.length ? selectedCoin : 'Loading markets…'}
+        placeholder={markets.length ? 'Search selected markets' : 'Select markets in Data Source'}
         bind:value={marketQuery}
         disabled={!markets.length}
         on:focus={openMarketMenu}
@@ -93,11 +102,11 @@
             <button
               type="button"
               class="market-option"
-              class:market-option-selected={market === selectedCoin}
+              class:market-option-selected={market.id === selectedInstrumentId}
               role="option"
-              aria-selected={market === selectedCoin}
+              aria-selected={market.id === selectedInstrumentId}
               on:click={() => selectMarket(market)}
-            >{market}-USD</button>
+            >{market.symbol} · {market.providerId}</button>
           {:else}
             <div class="market-no-results">No matching markets</div>
           {/each}
@@ -110,7 +119,7 @@
     <label for="interval">TIMEFRAME</label>
     <div class="select-wrap">
       <select id="interval" bind:value={selectedInterval}>
-        {#each TIMEFRAMES as timeframe}
+        {#each timeframes as timeframe}
           <option value={timeframe.value}>{timeframe.label}</option>
         {/each}
       </select>
@@ -171,7 +180,10 @@
       </div>
     {/each}
   </div>
-  <div class="config-note"><span class="info-icon">i</span> $10 min order · 0.05% fee</div>
+  <div class="config-note">
+    <span class="info-icon">i</span>
+    {quoteCurrency === 'USD' ? '$10' : `10 ${quoteCurrency}`} min order · 0.05% fee
+  </div>
 </section>
 
 {#if errorMessage}

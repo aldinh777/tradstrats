@@ -2,13 +2,15 @@
   import {
     chartPointForRange,
     formatCurrency,
+    formatNumber,
     formatUnits,
     type Candle,
   } from '../backtest'
+  import type { MarketInstrument } from '../data/types'
   import { buyAndHoldStrategy } from '../strategies/buyAndHold'
   import type { IdentifiedTradeOrder, StrategyComparison } from '../strategies/types'
 
-  export let coin: string
+  export let instrument: MarketInstrument
   export let interval: string
   export let comparisons: StrategyComparison[]
   export let candles: Candle[]
@@ -20,8 +22,13 @@
   type PositionedTradeOrder = IdentifiedTradeOrder & { x: number; y: number }
 
   let chartType: 'line' | 'candles' = 'candles'
+  let displayedInstrumentId = ''
   let tooltipElement: HTMLDivElement
 
+  $: if (instrument.id !== displayedInstrumentId) {
+    chartType = instrument.marketType === 'forex' ? 'line' : 'candles'
+    displayedInstrumentId = instrument.id
+  }
   $: hoveredTradeOrder = hoveredOrder
     ? tradeMarkers.find((marker) => isSameOrder(marker, hoveredOrder)) ?? null
     : null
@@ -29,6 +36,9 @@
   $: focusedComparison = comparisons.find(
     (comparison) => comparison.strategy.id === focusedStrategyId,
   )
+  $: priceFormatter = (value: number) => instrument.marketType === 'forex'
+    ? `${formatNumber(value, 5)} ${instrument.quoteCurrency}`
+    : formatCurrency(value, instrument.quoteCurrency)
   $: priceBounds = getPriceBounds(candles)
   $: pricePath = getPricePath(candles, priceBounds.low, priceBounds.high)
   $: yLabels = getPriceYLabels(priceBounds.low, priceBounds.high)
@@ -147,8 +157,8 @@
 <section class="chart-card">
   <div class="chart-header">
     <div>
-      <h2>{coin} price</h2>
-      <p>Candle open and close prices · order markers for the focused strategy</p>
+      <h2>{instrument.symbol} price</h2>
+      <p>{instrument.marketType === 'forex' ? 'Daily reference observations (flat OHLC) · no volume supplied' : 'Candle open and close prices'} · order markers for the focused strategy</p>
     </div>
     {#if focusedComparison}
       <div class="chart-legend">
@@ -173,15 +183,15 @@
   </div>
   <div class="chart-body">
     {#if loading && !candles.length}
-      <div class="chart-loading"><span class="spinner"></span> Fetching historical candles from Hyperliquid…</div>
+      <div class="chart-loading"><span class="spinner"></span> Fetching historical market data…</div>
     {:else if candles.length}
-      <div class="chart-y-labels">{#each yLabels as label}<span>{formatCurrency(label)}</span>{/each}</div>
+      <div class="chart-y-labels">{#each yLabels as label}      <span>{priceFormatter(label)}</span>{/each}</div>
       <div
         class="equity-chart-wrap"
         role="presentation"
         on:mouseleave={() => onHoverOrder(null)}
       >
-        <svg class="equity-chart" viewBox="0 0 960 310" preserveAspectRatio="none" role="img" aria-label={`${coin} price and focused strategy orders`}>
+        <svg class="equity-chart" viewBox="0 0 960 310" preserveAspectRatio="none" role="img" aria-label={`${instrument.symbol} price and focused strategy orders`}>
           <path class="grid-line" d="M12 34H948 M12 118H948 M12 202H948 M12 286H948" />
           {#if chartType === 'line'}
             <path d={pricePath} class="chart-path" style={`stroke: ${buyAndHoldStrategy.color}`} />
@@ -234,10 +244,10 @@
             on:mouseleave={() => onHoverOrder(null)}
           >
             <strong>{hoveredTradeOrder.side.toUpperCase()} · {new Date(hoveredTradeOrder.timestamp).toLocaleString()}</strong>
-            <span>Price <b>{formatCurrency(hoveredTradeOrder.price)}</b></span>
-            <span>Quantity <b>{formatUnits(hoveredTradeOrder.quantity)}</b></span>
-            <span>Notional <b>{formatCurrency(hoveredTradeOrder.notional)}</b></span>
-            <span>Fee <b>{formatCurrency(hoveredTradeOrder.fee)}</b></span>
+            <span>Price <b>{priceFormatter(hoveredTradeOrder.price)}</b></span>
+            <span>Quantity <b>{formatUnits(hoveredTradeOrder.quantity)} {instrument.baseCurrency}</b></span>
+            <span>Notional <b>{formatCurrency(hoveredTradeOrder.notional, instrument.quoteCurrency)}</b></span>
+            <span>Fee <b>{formatCurrency(hoveredTradeOrder.fee, instrument.quoteCurrency)}</b></span>
           </div>
         {/if}
       </div>
