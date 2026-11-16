@@ -14,15 +14,15 @@
 
   <div class="workspace-label">WORKSPACE</div>
   <nav aria-label="Main navigation">
+    <a class="nav-item" class:active={activePage === 'analytics'} href="#analytics" on:click|preventDefault={() => onNavigate('analytics')}>
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16.5h14M5 14V9M10 14V5M15 14V7" /></svg>
+      <span>Analytics</span>
+      {#if activePage === 'analytics'}<span class="nav-current"></span>{/if}
+    </a>
     <a class="nav-item" class:active={activePage === 'backtest'} href="#backtest" on:click|preventDefault={() => onNavigate('backtest')}>
       <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 15.5 7.2 11l3 2.8 6.8-8" /><path d="M12.5 5.8H17v4.5" /></svg>
       <span>Backtesting</span>
       {#if activePage === 'backtest'}<span class="nav-current"></span>{/if}
-    </a>
-    <a class="nav-item" class:active={activePage === 'analytics'} href="#analytics" on:click|preventDefault={() => onNavigate('analytics')}>
-      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16.5h14M5 13l3-4 3 2 4-6" /><path d="M12 5h3v3" /></svg>
-      <span>Analytics</span>
-      {#if activePage === 'analytics'}<span class="nav-current"></span>{/if}
     </a>
     <a class="nav-item" class:active={activePage === 'sources'} href="#data-source" on:click|preventDefault={() => onNavigate('sources')}>
       <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3.5h8l4 4v9H4z" /><path d="M12 3.5v4h4M7 11h6M7 14h6" /></svg>
@@ -47,3 +47,21 @@
     <button class="more-button" aria-label="Workspace options">···</button>
   </div>
 </aside>
+
+<nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+  <a class="nav-item" class:active={activePage === 'analytics'} href="#analytics" on:click|preventDefault={() => onNavigate('analytics')}>
+    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16.5h14M5 14V9M10 14V5M15 14V7" /></svg>
+    <span>Analytics</span>
+    {#if activePage === 'analytics'}<span class="nav-current"></span>{/if}
+  </a>
+  <a class="nav-item" class:active={activePage === 'backtest'} href="#backtest" on:click|preventDefault={() => onNavigate('backtest')}>
+    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 15.5 7.2 11l3 2.8 6.8-8" /><path d="M12.5 5.8H17v4.5" /></svg>
+    <span>Backtesting</span>
+    {#if activePage === 'backtest'}<span class="nav-current"></span>{/if}
+  </a>
+  <a class="nav-item" class:active={activePage === 'sources'} href="#data-source" on:click|preventDefault={() => onNavigate('sources')}>
+    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3.5h8l4 4v9H4z" /><path d="M12 3.5v4h4M7 11h6M7 14h6" /></svg>
+    <span>Data Source</span>
+    {#if activePage === 'sources'}<span class="nav-current"></span>{/if}
+  </a>
+</nav>

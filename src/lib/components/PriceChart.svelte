@@ -19,6 +19,7 @@
   export let hoveredOrder: IdentifiedTradeOrder | null
   export let onHoverOrder: (order: IdentifiedTradeOrder | null) => void
   export let showOrderMarkers = true
+  export let headlineValue: string | null = null
 
   type PositionedTradeOrder = IdentifiedTradeOrder & { x: number; y: number }
 
@@ -158,7 +159,7 @@
 <section class="chart-card">
   <div class="chart-header">
     <div>
-      <h2>{instrument.symbol} price</h2>
+      <h2>{instrument.symbol} price{#if headlineValue}<span class="chart-title-value">{headlineValue}</span>{/if}</h2>
       <p>{instrument.marketType === 'forex' ? 'Daily reference observations (flat OHLC) · no volume supplied' : 'Candle open and close prices'}{showOrderMarkers ? ' · order markers for the focused strategy' : ''}</p>
     </div>
     {#if focusedComparison}

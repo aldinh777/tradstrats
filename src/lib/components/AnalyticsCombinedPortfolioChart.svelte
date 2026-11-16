@@ -42,7 +42,7 @@
 <section class="chart-card analytics-chart-card combined-portfolio-chart">
   <div class="chart-header">
     <div>
-      <h2>Combined token portfolio</h2>
+      <h2>Combined token portfolio{#if portfolio.points.length}<span class="chart-title-value">Index {portfolio.points[portfolio.points.length - 1].value.toFixed(2)}</span>{/if}</h2>
       <p>Selected strategy per market · equal initial allocation across {portfolio.marketCount} tokens · no rebalancing.</p>
     </div>
     {#if portfolio.points.length}

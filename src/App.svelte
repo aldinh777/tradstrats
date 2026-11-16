@@ -61,7 +61,7 @@
   let hoveredStrategyId: string | null = null
   let activeStrategyId: string | null = null
   let hoveredOrder: IdentifiedTradeOrder | null = null
-  let activePage: WorkspacePage = 'backtest'
+  let activePage: WorkspacePage = 'analytics'
   let sidebarCollapsed = false
   let loading = true
   let providersLoading = true

@@ -101,6 +101,12 @@
   $: chartFocusResult = analyticsResults.find(
     (item) => item.instrument.id === chartFocusInstrumentId,
   ) ?? null
+  $: chartHeadlineValue = chartFocusResult?.metrics?.lastPrice == null
+    ? null
+    : `${formatNumber(
+        chartFocusResult.metrics.lastPrice,
+        chartFocusResult.instrument.marketType === 'forex' ? 8 : 2,
+      )} ${chartFocusResult.instrument.quoteCurrency}`
   $: chartSeries = analyticsResults.flatMap((item) =>
     item.result ? [{
       instrument: item.instrument,
@@ -450,6 +456,7 @@
       hoveredOrder={null}
       onHoverOrder={() => {}}
       showOrderMarkers={false}
+      headlineValue={chartHeadlineValue}
     />
   {:else}
     <AnalyticsCombinedPortfolioChart
@@ -594,17 +601,17 @@
               <div class="analytics-market-empty">{loading ? 'Loading historical observations…' : 'Run comparison to calculate statistics.'}</div>
             {:else}
             <div class="analytics-stat-summary">
-              <div>
-                <span>Last price</span>
+              <div class="analytics-stat-primary">
+                <span>{sortMetricLabel()}</span>
+                <strong class={sortMetricTone(item.metrics)}>{displaySortMetric(item.metrics)}</strong>
+              </div>
+              <div class="analytics-stat-price">
+                <span>Price</span>
                 <strong>{item.metrics.lastPrice === null
                   ? 'Insufficient observations'
                   : `${formatNumber(item.metrics.lastPrice, priceDigits)} ${item.instrument.quoteCurrency}`}</strong>
               </div>
-              <div>
-                <span>{sortMetricLabel()}</span>
-                <strong class={sortMetricTone(item.metrics)}>{displaySortMetric(item.metrics)}</strong>
-              </div>
-              </div>
+            </div>
             {/if}
           <span class="analytics-stat-card-hint">{chartFocusInstrumentId === item.instrument.id ? 'Price chart selected' : 'Click to view price chart'}</span>
         </button>
