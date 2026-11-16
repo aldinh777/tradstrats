@@ -54,3 +54,14 @@ export type MarketPerformanceSeries = {
 export type CachedRange = HistoricalRange & {
   fetchedAt: number
 }
+
+export type CachedSeriesSummary = {
+  key: string
+  providerId: ProviderId
+  instrumentId: string
+  interval: string
+  candleCount: number
+  firstTimestamp: number | null
+  lastTimestamp: number | null
+  coverage: CachedRange[]
+}

@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { calculateAnalyticsMetrics } from '../src/lib/analytics'
+import {
+  calculateAnalyticsMetrics,
+  calculateCombinedPortfolioMetrics,
+  combineTokenPerformanceSeries,
+  sortAnalyticsResults,
+  type AnalyticsMetrics,
+} from '../src/lib/analytics'
 import {
   HistoricalDataCache,
   makeCacheKey,
@@ -8,17 +14,23 @@ import {
 } from '../src/lib/data/cache'
 import { createFrankfurterProvider } from '../src/lib/data/providers/frankfurter'
 import { createHyperliquidProvider } from '../src/lib/data/providers/hyperliquid'
-import type { CachedRange, DataProvider, HistoricalRange, MarketInstrument } from '../src/lib/data/types'
+import type {
+  CachedRange,
+  CachedSeriesSummary,
+  DataProvider,
+  HistoricalRange,
+  MarketInstrument,
+} from '../src/lib/data/types'
 import type { Candle } from '../src/lib/strategies/types'
 
 const DAY = 24 * 60 * 60 * 1000
 const instrument: MarketInstrument = {
-  id: 'frankfurter:USD/EUR',
+  id: 'frankfurter:EUR/USD',
   providerId: 'frankfurter',
-  symbol: 'USD/EUR',
-  name: 'United States Dollar to Euro',
-  baseCurrency: 'USD',
-  quoteCurrency: 'EUR',
+  symbol: 'EUR/USD',
+  name: 'Euro to United States Dollar',
+  baseCurrency: 'EUR',
+  quoteCurrency: 'USD',
   marketType: 'forex',
 }
 
@@ -34,17 +46,57 @@ class MemoryHistoricalDataStore implements HistoricalDataStore {
     return this.candles.get(key) ?? []
   }
 
-  async replaceRange(key: string, range: HistoricalRange, fetchedAt: number, candles: Candle[]) {
+  async listSeriesSummaries(): Promise<CachedSeriesSummary[]> {
+    const keys = new Set([...this.candles.keys(), ...this.coverage.keys()])
+    return [...keys].map((key) => {
+      const [providerId, instrumentId, interval] = key.split('|')
+      if (providerId !== 'hyperliquid' && providerId !== 'frankfurter') {
+        throw new Error(`Unsupported provider key: ${key}`)
+      }
+      const candles = this.candles.get(key) ?? []
+      return {
+        key,
+        providerId,
+        instrumentId,
+        interval,
+        candleCount: candles.length,
+        firstTimestamp: candles.length ? candles[0].t : null,
+        lastTimestamp: candles.length ? candles[candles.length - 1].t : null,
+        coverage: this.coverage.get(key) ?? [],
+      }
+    })
+  }
+
+  async replaceRange(
+    key: string,
+    range: HistoricalRange,
+    fetchedAt: number,
+    candles: Candle[],
+    coverageEndTime = range.endTime,
+  ) {
     const existing = (this.candles.get(key) ?? []).filter(
       (candle) => candle.t < range.startTime || candle.t > range.endTime,
     )
     this.candles.set(key, [...existing, ...candles].sort((a, b) => a.t - b.t))
-    this.coverage.set(key, [
-      ...(this.coverage.get(key) ?? []).filter(
-        (item) => item.startTime !== range.startTime || item.endTime !== range.endTime,
-      ),
-      { ...range, fetchedAt },
-    ])
+    const coverage = (this.coverage.get(key) ?? []).flatMap((item) => {
+      if (item.startTime > range.endTime || item.endTime < range.startTime) return [item]
+      return [
+        ...(item.startTime < range.startTime
+          ? [{ ...item, endTime: range.startTime - 1 }]
+          : []),
+        ...(item.endTime > range.endTime
+          ? [{ ...item, startTime: range.endTime + 1 }]
+          : []),
+      ]
+    })
+    if (coverageEndTime >= range.startTime) {
+      coverage.push({
+        startTime: range.startTime,
+        endTime: Math.min(range.endTime, coverageEndTime),
+        fetchedAt,
+      })
+    }
+    this.coverage.set(key, coverage)
   }
 
   async clear() {
@@ -64,22 +116,22 @@ describe('Frankfurter provider', () => {
       }
       return new Response(JSON.stringify({
         amount: 1,
-        base: 'USD',
+        base: 'EUR',
         start_date: '2023-12-29',
         end_date: '2024-01-03',
         rates: {
-          '2023-12-29': { EUR: 0.9 },
-          '2024-01-02': { EUR: 0.91 },
-          '2024-01-03': { EUR: 0.92 },
+          '2023-12-29': { USD: 1.1 },
+          '2024-01-02': { USD: 1.11 },
+          '2024-01-03': { USD: 1.12 },
         },
       }))
     })
 
     const markets = await provider.listInstruments()
-    const pair = markets.find((market) => market.id === 'frankfurter:USD/EUR')
+    const pair = markets.find((market) => market.id === 'frankfurter:EUR/USD')
     expect(markets).toHaveLength(2)
-    expect(markets.every((market) => market.baseCurrency === 'USD')).toBe(true)
-    expect(markets.some((market) => market.id === 'frankfurter:EUR/USD')).toBe(false)
+    expect(markets.every((market) => market.quoteCurrency === 'USD')).toBe(true)
+    expect(markets.some((market) => market.id === 'frankfurter:USD/EUR')).toBe(false)
     expect(pair).toBeDefined()
     if (!pair) return
 
@@ -90,11 +142,11 @@ describe('Frankfurter provider', () => {
       Date.UTC(2024, 0, 3, 23, 59, 59, 999),
     )
     expect(candles).toEqual([
-      { t: Date.UTC(2024, 0, 2), o: 0.91, h: 0.91, l: 0.91, c: 0.91, v: null },
-      { t: Date.UTC(2024, 0, 3), o: 0.92, h: 0.92, l: 0.92, c: 0.92, v: null },
+      { t: Date.UTC(2024, 0, 2), o: 1.11, h: 1.11, l: 1.11, c: 1.11, v: null },
+      { t: Date.UTC(2024, 0, 3), o: 1.12, h: 1.12, l: 1.12, c: 1.12, v: null },
     ])
-    expect(new URL(urls[1]).searchParams.get('base')).toBe('USD')
-    expect(new URL(urls[1]).searchParams.get('symbols')).toBe('EUR')
+    expect(new URL(urls[1]).searchParams.get('base')).toBe('EUR')
+    expect(new URL(urls[1]).searchParams.get('symbols')).toBe('USD')
     expect(urls[1]).toContain('/2024-01-01..2024-01-03')
   })
 
@@ -112,7 +164,7 @@ describe('Frankfurter provider', () => {
       new Response(JSON.stringify({ EUR: 'Euro', JPY: 'Yen' }), { status: 200 }),
     )
     await expect(provider.listInstruments()).rejects.toThrow(
-      'Frankfurter did not list USD as a supported base currency.',
+      'Frankfurter did not list USD as a supported quote currency.',
     )
   })
 })
@@ -173,6 +225,83 @@ describe('Hyperliquid provider', () => {
 })
 
 describe('historical cache', () => {
+  test('refreshes Hyperliquid recent candles and excludes the still-open candle', async () => {
+    const market: MarketInstrument = {
+      ...instrument,
+      id: 'hyperliquid:BTC',
+      providerId: 'hyperliquid',
+      symbol: 'BTC/USD',
+      baseCurrency: 'BTC',
+      marketType: 'perpetual',
+    }
+    const now = Date.UTC(2026, 0, 10, 12)
+    const today = Date.UTC(2026, 0, 10)
+    const yesterday = today - DAY
+    const range = { startTime: Date.UTC(2026, 0, 1), endTime: now }
+    const key = makeCacheKey(market, '1d')
+    const store = new MemoryHistoricalDataStore()
+    store.coverage.set(key, [{ ...range, fetchedAt: now }])
+    store.candles.set(key, [
+      { t: yesterday, o: 90, h: 100, l: 85, c: 99, v: 10 },
+      { t: today, o: 99, h: 105, l: 95, c: 100, v: 2 },
+    ])
+    const requested: HistoricalRange[] = []
+    const provider: DataProvider = {
+      id: 'hyperliquid',
+      name: 'Hyperliquid',
+      description: '',
+      timeframes: [{ value: '1d', label: 'Daily', apiInterval: '1d' }],
+      listInstruments: async () => [market],
+      fetchCandles: async (_instrument, _interval, startTime, endTime) => {
+        requested.push({ startTime, endTime })
+        return [
+          { t: yesterday, o: 90, h: 112, l: 85, c: 110, v: 20 },
+          { t: today, o: 110, h: 120, l: 108, c: 118, v: 3 },
+        ]
+      },
+    }
+    const cache = new HistoricalDataCache(store, () => now, () => provider)
+
+    const candles = await cache.getCandles(market, '1d', range)
+
+    expect(requested).toEqual([{
+      startTime: now - 4 * DAY,
+      endTime: now,
+    }])
+    expect(candles.at(-1)).toEqual({
+      t: yesterday,
+      o: 90,
+      h: 112,
+      l: 85,
+      c: 110,
+      v: 20,
+    })
+    expect(candles.some((candle) => candle.t === today)).toBe(false)
+    expect((await store.getCandles(key)).some((candle) => candle.t === today)).toBe(false)
+  })
+
+  test('lists cached series metadata and reads its stored candle rows', async () => {
+    const store = new MemoryHistoricalDataStore()
+    const key = makeCacheKey(instrument, '1d')
+    const candle = { t: DAY, o: 1.1, h: 1.2, l: 1, c: 1.15, v: null }
+    const coverage = { startTime: DAY, endTime: 2 * DAY, fetchedAt: 3 * DAY }
+    store.candles.set(key, [candle])
+    store.coverage.set(key, [coverage])
+    const cache = new HistoricalDataCache(store)
+
+    await expect(cache.listCachedSeries()).resolves.toEqual([{
+      key,
+      providerId: 'frankfurter',
+      instrumentId: instrument.id,
+      interval: '1d',
+      candleCount: 1,
+      firstTimestamp: DAY,
+      lastTimestamp: DAY,
+      coverage: [coverage],
+    }])
+    await expect(cache.getCachedCandles(key)).resolves.toEqual([candle])
+  })
+
   test('fetches only uncovered ranges and merges overlapping records without duplicates', async () => {
     const store = new MemoryHistoricalDataStore()
     const key = makeCacheKey(instrument, '1d')
@@ -255,7 +384,83 @@ describe('historical cache', () => {
 })
 
 describe('analytics metrics', () => {
-  test('reports quote-currency performance while marking unavailable volume and risk as unavailable', () => {
+  test('combines token curves with equal initial weights and excludes currency markets', () => {
+    const firstDay = Date.UTC(2026, 0, 1)
+    const secondDay = firstDay + DAY
+    const token = (id: string, candles: Candle[], equity: number[]) => ({
+      instrument: {
+        ...instrument,
+        id,
+        providerId: 'hyperliquid' as const,
+        symbol: `${id.split(':')[1]}/USD`,
+        baseCurrency: id.split(':')[1],
+        marketType: 'perpetual' as const,
+      },
+      candles,
+      result: {
+        equity,
+        totalReturn: 0,
+        maxDrawdown: 0,
+        trades: 0,
+        finalBalance: equity[equity.length - 1],
+        unitsOwned: 0,
+        cashBalance: 0,
+        feesPaid: 0,
+        orders: [],
+      },
+      color: '#fff',
+    })
+    const first = token('hyperliquid:BTC', [
+      { t: firstDay, o: 1, h: 1, l: 1, c: 1, v: 1 },
+      { t: secondDay, o: 1, h: 1, l: 1, c: 1, v: 1 },
+    ], [10_000, 11_000, 12_000])
+    const second = token('hyperliquid:ETH', [
+      { t: firstDay, o: 1, h: 1, l: 1, c: 1, v: 1 },
+    ], [10_000, 9_000])
+    const currencies = {
+      ...second,
+      instrument: instrument,
+    }
+
+    const portfolio = combineTokenPerformanceSeries([first, second, currencies])
+
+    expect(portfolio.marketCount).toBe(2)
+    expect(portfolio.points.map(({ value }) => value)).toEqual([100, 100, 105])
+  })
+
+  test('calculates combined portfolio value, performance, drawdown, and risk metrics from its index', () => {
+    const metrics = calculateCombinedPortfolioMetrics({
+      marketCount: 2,
+      points: [
+        { timestamp: 1, value: 100 },
+        { timestamp: 2, value: 110 },
+        { timestamp: 3, value: 99 },
+      ],
+    }, 10_000, 1_234)
+
+    expect(metrics.currentIndex).toBe(99)
+    expect(metrics.currentValue).toBe(9_900)
+    expect(metrics.highestValue).toBe(11_000)
+    expect(metrics.averageValue).toBe(10_300)
+    expect(metrics.absoluteReturn).toBe(-100)
+    expect(metrics.percentageReturn).toBeCloseTo(-1)
+    expect(metrics.maxDrawdown).toBe(10)
+    expect(metrics.annualizedVolatility).toBeCloseTo(Math.sqrt(5.04) * 100)
+    expect(metrics.sharpeRatio).toBeCloseTo(0)
+    expect(metrics.totalDollarVolume).toBe(1_234)
+  })
+
+  test('leaves combined portfolio metrics unavailable when its series is empty', () => {
+    const metrics = calculateCombinedPortfolioMetrics({ points: [], marketCount: 0 }, 10_000)
+
+    expect(metrics.currentValue).toBeNull()
+    expect(metrics.absoluteReturn).toBeNull()
+    expect(metrics.maxDrawdown).toBeNull()
+    expect(metrics.annualizedVolatility).toBeNull()
+    expect(metrics.sharpeRatio).toBeNull()
+  })
+
+  test('reports quote-currency performance and leaves unavailable source volume unavailable', () => {
     const metrics = calculateAnalyticsMetrics(
       [
         { t: 1, o: 1, h: 1, l: 1, c: 1, v: null },
@@ -273,6 +478,7 @@ describe('analytics metrics', () => {
         orders: [],
       },
       100,
+      'USD',
     )
 
     expect(metrics).toMatchObject({
@@ -283,7 +489,7 @@ describe('analytics metrics', () => {
       absoluteReturn: 10,
       percentageReturn: 10,
       maxDrawdown: 0,
-      totalVolume: null,
+      totalDollarVolume: null,
     })
     expect(metrics.annualizedVolatility).not.toBeNull()
     expect(metrics.sharpeRatio).not.toBeNull()
@@ -304,9 +510,58 @@ describe('analytics metrics', () => {
         orders: [],
       },
       100,
+      'USD',
     )
     expect(metrics.annualizedVolatility).toBeNull()
     expect(metrics.sharpeRatio).toBeNull()
-    expect(metrics.totalVolume).toBe(0)
+    expect(metrics.totalDollarVolume).toBe(0)
+  })
+
+  test('converts provided base-asset volume to USD using each candle close', () => {
+    const metrics = calculateAnalyticsMetrics(
+      [
+        { t: 1, o: 10, h: 10, l: 10, c: 10, v: 3 },
+        { t: 2, o: 12, h: 12, l: 12, c: 12, v: 5 },
+      ],
+      {
+        equity: [100, 100, 100],
+        totalReturn: 0,
+        maxDrawdown: 0,
+        trades: 0,
+        finalBalance: 100,
+        unitsOwned: 0,
+        cashBalance: 100,
+        feesPaid: 0,
+        orders: [],
+      },
+      100,
+      'USD',
+    )
+    expect(metrics.totalDollarVolume).toBe(90)
+  })
+
+  test('sorts by the chosen metric and keeps unavailable results last in either direction', () => {
+    const makeMetrics = (percentageReturn: number | null): AnalyticsMetrics => ({
+      lastPrice: null,
+      highestPrice: null,
+      lowestPrice: null,
+      averagePrice: null,
+      absoluteReturn: null,
+      percentageReturn,
+      maxDrawdown: null,
+      annualizedVolatility: null,
+      sharpeRatio: null,
+      totalDollarVolume: null,
+    })
+    const results = [
+      { id: 'middle', metrics: makeMetrics(5) },
+      { id: 'high', metrics: makeMetrics(12) },
+      { id: 'unavailable', metrics: null },
+    ]
+
+    expect(sortAnalyticsResults(results, 'percentageReturn', 'descending').map(({ id }) => id))
+      .toEqual(['high', 'middle', 'unavailable'])
+    expect(sortAnalyticsResults(results, 'percentageReturn', 'ascending').map(({ id }) => id))
+      .toEqual(['middle', 'high', 'unavailable'])
   })
 })

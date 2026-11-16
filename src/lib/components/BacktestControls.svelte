@@ -1,15 +1,13 @@
 <script lang="ts">
   import { formatMonthLabel } from '../backtest'
-  import type { MarketInstrument, TimeframeOption } from '../data/types'
+  import type { MarketInstrument } from '../data/types'
   import { STRATEGY_CATEGORIES, type StrategyCategory, type StrategyOption } from '../strategies/types'
 
   export let markets: MarketInstrument[]
   export let selectedInstrumentId: string
   export let quoteCurrency: string
-  export let timeframes: readonly TimeframeOption[]
   export let strategies: StrategyOption[]
   export let onSelectInstrument: (instrumentId: string) => void
-  export let selectedInterval: string
   export let startMonth: string
   export let endMonth: string
   export let monthOptions: string[]
@@ -116,15 +114,8 @@
   </div>
   <div class="control-divider"></div>
   <div class="control-group">
-    <label for="interval">TIMEFRAME</label>
-    <div class="select-wrap">
-      <select id="interval" bind:value={selectedInterval}>
-        {#each timeframes as timeframe}
-          <option value={timeframe.value}>{timeframe.label}</option>
-        {/each}
-      </select>
-      <span class="select-chevron">⌄</span>
-    </div>
+    <span class="control-label">TIMEFRAME</span>
+    <strong class="fixed-timeframe">1 day</strong>
   </div>
   <div class="control-divider"></div>
   <div class="control-group date-range-control">

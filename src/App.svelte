@@ -8,14 +8,19 @@
     type Candle,
   } from './lib/backtest'
   import { historicalDataCache } from './lib/data/cache'
-  import { DATA_PROVIDERS, getDataProvider } from './lib/data/providers'
+  import { DATA_PROVIDERS } from './lib/data/providers'
   import {
     loadBacktestInstrumentId,
     loadInstrumentSelections,
     saveBacktestInstrumentId,
     saveInstrumentSelections,
   } from './lib/data/selection'
-  import type { MarketInstrument, ProviderCatalog, WorkspacePage } from './lib/data/types'
+  import type {
+    CachedSeriesSummary,
+    MarketInstrument,
+    ProviderCatalog,
+    WorkspacePage,
+  } from './lib/data/types'
   import { getStrategy, STRATEGY_OPTIONS } from './lib/strategies'
   import type { IdentifiedTradeOrder, StrategyComparison } from './lib/strategies/types'
   import AnalyticsPage from './lib/components/AnalyticsPage.svelte'
@@ -47,7 +52,7 @@
   }))
   let selectedInstruments: MarketInstrument[] = []
   let selectedInstrumentId = 'hyperliquid:BTC'
-  let selectedInterval = '1d'
+  const selectedInterval = '1d'
   let startMonth = `${initialStartDate.getUTCFullYear()}-${String(initialStartDate.getUTCMonth() + 1).padStart(2, '0')}`
   let endMonth = currentMonth
   let selectedStrategyIds = ['buy-and-hold', 'dca', 'n-candle-momentum-2']
@@ -64,13 +69,15 @@
   let selectionError = ''
   let lastUpdated = ''
   let cacheMessage = ''
+  let cachedSeries: CachedSeriesSummary[] = []
+  let cacheSeriesLoading = false
+  let cacheSeriesError = ''
+  let inspectedCacheKey: string | null = null
+  let inspectedCacheCandles: Candle[] = []
+  let cacheCandlesLoading = false
 
   $: markets = selectedInstruments
   $: selectedInstrument = selectedInstruments.find((item) => item.id === selectedInstrumentId) ?? null
-  $: timeframes = selectedInstrument ? getDataProvider(selectedInstrument.providerId).timeframes : []
-  $: if (timeframes.length && !timeframes.some((timeframe) => timeframe.value === selectedInterval)) {
-    selectedInterval = '1d'
-  }
   $: periodLabel = startMonth && endMonth ? formatMonthRange(startMonth, endMonth) : 'Select a date range'
   $: highlightedStrategyId = hoveredStrategyId ?? activeStrategyId
   $: selectedStrategyId = highlightedStrategyId ?? comparisons[0]?.strategy.id ?? null
@@ -97,7 +104,12 @@
           const catalog = providerCatalogs.find((item) => item.provider.id === instrument.providerId)
           if (!catalog || catalog.error) return [instrument]
           const available = catalog.instruments.find((item) => item.id === instrument.id)
-          if (instrument.providerId === 'frankfurter') return available ? [available] : []
+          if (instrument.providerId === 'frankfurter') {
+            const migrated = available ?? catalog.instruments.find((item) =>
+              item.baseCurrency === instrument.quoteCurrency && item.quoteCurrency === 'USD',
+            )
+            return migrated ? [migrated] : []
+          }
           return [available ?? instrument]
         })
         if (selectedInstruments.length !== saved.instruments.length) {
@@ -112,11 +124,19 @@
       }
 
       const savedBacktestId = loadBacktestInstrumentId()
-      const preferredId = savedBacktestId && selectedInstruments.some((item) => item.id === savedBacktestId)
-        ? savedBacktestId
-        : selectedInstruments[0]?.id
-      if (preferredId) selectedInstrumentId = preferredId
-      if (selectedInstruments.length && !preferredId) selectedInstrumentId = selectedInstruments[0].id
+      const legacyFxPair = savedBacktestId
+        ? /^frankfurter:USD\/([A-Z]{3})$/.exec(savedBacktestId)
+        : null
+      const migratedBacktestId = legacyFxPair
+        ? `frankfurter:${legacyFxPair[1]}/USD`
+        : null
+      const preferredId = [savedBacktestId, migratedBacktestId].find(
+        (id) => id && selectedInstruments.some((item) => item.id === id),
+      ) ?? selectedInstruments[0]?.id
+      if (preferredId) {
+        selectedInstrumentId = preferredId
+        if (savedBacktestId !== preferredId) saveBacktestInstrumentId(preferredId)
+      }
     } catch (error) {
       selectionError = error instanceof Error ? error.message : 'Unable to load saved market selections.'
     } finally {
@@ -157,7 +177,6 @@
 
   function selectBacktestInstrument(instrumentId: string) {
     selectedInstrumentId = instrumentId
-    selectedInterval = '1d'
     saveBacktestInstrumentId(instrumentId)
   }
 
@@ -211,9 +230,43 @@
   async function clearHistoricalCache() {
     try {
       await historicalDataCache.clear()
+      cachedSeries = []
+      inspectedCacheKey = null
+      inspectedCacheCandles = []
       cacheMessage = 'Historical data cache cleared. Saved market selections were not changed.'
     } catch (error) {
       cacheMessage = error instanceof Error ? error.message : 'Unable to clear the historical data cache.'
+    }
+  }
+
+  async function refreshCachedSeries() {
+    cacheSeriesLoading = true
+    cacheSeriesError = ''
+    try {
+      cachedSeries = await historicalDataCache.listCachedSeries()
+      if (inspectedCacheKey && !cachedSeries.some((item) => item.key === inspectedCacheKey)) {
+        inspectedCacheKey = null
+        inspectedCacheCandles = []
+      }
+    } catch (error) {
+      cacheSeriesError = error instanceof Error ? error.message : 'Unable to inspect cached historical data.'
+    } finally {
+      cacheSeriesLoading = false
+    }
+  }
+
+  async function inspectCachedSeries(key: string) {
+    inspectedCacheKey = key
+    inspectedCacheCandles = []
+    cacheCandlesLoading = true
+    cacheSeriesError = ''
+    try {
+      inspectedCacheCandles = await historicalDataCache.getCachedCandles(key)
+    } catch (error) {
+      inspectedCacheCandles = []
+      cacheSeriesError = error instanceof Error ? error.message : 'Unable to read cached candles.'
+    } finally {
+      cacheCandlesLoading = false
     }
   }
 
@@ -263,10 +316,8 @@
           {markets}
           {selectedInstrumentId}
           quoteCurrency={selectedInstrument?.quoteCurrency ?? 'USD'}
-          {timeframes}
           onSelectInstrument={selectBacktestInstrument}
           strategies={STRATEGY_OPTIONS}
-          bind:selectedInterval
           bind:startMonth
           bind:endMonth
           {monthOptions}
@@ -336,9 +387,17 @@
         selectedInstrumentIds={selectedInstruments.map((instrument) => instrument.id)}
         loading={providersLoading}
         {cacheMessage}
+        {cachedSeries}
+        cacheSeriesLoading={cacheSeriesLoading}
+        cacheSeriesError={cacheSeriesError}
+        {inspectedCacheKey}
+        inspectedCacheCandles={inspectedCacheCandles}
+        cacheCandlesLoading={cacheCandlesLoading}
         onToggleInstrument={toggleInstrument}
         onRefresh={refreshProviderCatalogs}
         onClearCache={clearHistoricalCache}
+        onRefreshCache={refreshCachedSeries}
+        onInspectCache={inspectCachedSeries}
       />
     {:else}
       <AnalyticsPage instruments={selectedInstruments} {monthOptions} />

@@ -18,6 +18,7 @@
   export let highlightedStrategyId: string | null
   export let hoveredOrder: IdentifiedTradeOrder | null
   export let onHoverOrder: (order: IdentifiedTradeOrder | null) => void
+  export let showOrderMarkers = true
 
   type PositionedTradeOrder = IdentifiedTradeOrder & { x: number; y: number }
 
@@ -158,7 +159,7 @@
   <div class="chart-header">
     <div>
       <h2>{instrument.symbol} price</h2>
-      <p>{instrument.marketType === 'forex' ? 'Daily reference observations (flat OHLC) · no volume supplied' : 'Candle open and close prices'} · order markers for the focused strategy</p>
+      <p>{instrument.marketType === 'forex' ? 'Daily reference observations (flat OHLC) · no volume supplied' : 'Candle open and close prices'}{showOrderMarkers ? ' · order markers for the focused strategy' : ''}</p>
     </div>
     {#if focusedComparison}
       <div class="chart-legend">
@@ -191,7 +192,7 @@
         role="presentation"
         on:mouseleave={() => onHoverOrder(null)}
       >
-        <svg class="equity-chart" viewBox="0 0 960 310" preserveAspectRatio="none" role="img" aria-label={`${instrument.symbol} price and focused strategy orders`}>
+        <svg class="equity-chart" viewBox="0 0 960 310" preserveAspectRatio="none" role="img" aria-label={`${instrument.symbol} price chart${showOrderMarkers ? ' and focused strategy orders' : ''}`}>
           <path class="grid-line" d="M12 34H948 M12 118H948 M12 202H948 M12 286H948" />
           {#if chartType === 'line'}
             <path d={pricePath} class="chart-path" style={`stroke: ${buyAndHoldStrategy.color}`} />
@@ -257,13 +258,13 @@
         <span>{new Date(lastCandleCloseTimestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
       </div>
     {:else}
-      <div class="chart-empty">Run a backtest to see market prices and strategy orders.</div>
+      <div class="chart-empty">{showOrderMarkers ? 'Run a backtest to see market prices and strategy orders.' : 'Run an analysis to load price data for this market.'}</div>
     {/if}
   </div>
   {#if candles.length}
     <div class="chart-footer">
       <div><span class="footer-label">CANDLES ANALYZED</span><strong>{candles.length.toLocaleString()}</strong></div>
-      <div class="chart-footer-note">Orders are plotted at their execution prices.</div>
+      {#if showOrderMarkers}<div class="chart-footer-note">Orders are plotted at their execution prices.</div>{/if}
     </div>
   {/if}
 </section>

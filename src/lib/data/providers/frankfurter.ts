@@ -21,7 +21,7 @@ export function createFrankfurterProvider(fetcher: typeof fetch = fetch): DataPr
   return {
     id: 'frankfurter',
     name: 'Frankfurter',
-    description: 'ECB daily reference rates for USD-base currency pairs.',
+    description: 'ECB daily reference rates for currency/USD pairs.',
     timeframes: FRANKFURTER_TIMEFRAMES,
     async listInstruments() {
       const response = await fetcher(`${API_URL}/currencies`)
@@ -37,18 +37,18 @@ export function createFrankfurterProvider(fetcher: typeof fetch = fetch): DataPr
       if (!currencies.length) throw new Error('Frankfurter returned no supported currencies.')
 
       const usd = currencies.find(([code]) => code === 'USD')
-      if (!usd) throw new Error('Frankfurter did not list USD as a supported base currency.')
-      const [, baseName] = usd
+      if (!usd) throw new Error('Frankfurter did not list USD as a supported quote currency.')
+      const [, quoteName] = usd
 
       return currencies
-        .filter(([quoteCurrency]) => quoteCurrency !== 'USD')
-        .map(([quoteCurrency, quoteName]) => ({
-          id: `frankfurter:USD/${quoteCurrency}`,
+        .filter(([baseCurrency]) => baseCurrency !== 'USD')
+        .map(([baseCurrency, baseName]) => ({
+          id: `frankfurter:${baseCurrency}/USD`,
           providerId: 'frankfurter' as const,
-          symbol: `USD/${quoteCurrency}`,
+          symbol: `${baseCurrency}/USD`,
           name: `${baseName} to ${quoteName}`,
-          baseCurrency: 'USD',
-          quoteCurrency,
+          baseCurrency,
+          quoteCurrency: 'USD',
           marketType: 'forex' as const,
         }))
     },

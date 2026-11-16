@@ -5,11 +5,7 @@ const API_URL = 'https://api.hyperliquid.xyz/info'
 const DAY = 24 * 60 * 60 * 1000
 
 export const HYPERLIQUID_TIMEFRAMES: readonly TimeframeOption[] = [
-  { value: '12h', label: '12 hours', apiInterval: '12h' },
   { value: '1d', label: '1 day', apiInterval: '1d' },
-  { value: '3d', label: '3 days', apiInterval: '3d' },
-  { value: '7d', label: '7 days', apiInterval: '1w' },
-  { value: '1M', label: '1 month', apiInterval: '1M' },
 ]
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -29,7 +25,7 @@ async function postInfo(payload: Record<string, unknown>, fetcher: typeof fetch)
   return response.json()
 }
 
-function nextCandleTime(timestamp: number, interval: string): number {
+export function nextCandleTime(timestamp: number, interval: string): number {
   if (interval === '1M') {
     const date = new Date(timestamp)
     return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1)
